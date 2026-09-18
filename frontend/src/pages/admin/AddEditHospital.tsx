@@ -15,7 +15,7 @@ interface HospitalForm {
   email: string;
   website: string;
   emergency_contact: string;
-  verification_status: string;
+  verification_status: 'pending' | 'verified' | 'rejected';
   is_active: boolean;
 }
 
@@ -58,7 +58,7 @@ export const AddEditHospital: React.FC = () => {
   }, [id]);
 
   const set = (key: keyof HospitalForm, val: string | boolean) =>
-    setForm((prev) => ({ ...prev, [key]: val }));
+    setForm((prev) => ({ ...prev, [key]: val } as HospitalForm));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

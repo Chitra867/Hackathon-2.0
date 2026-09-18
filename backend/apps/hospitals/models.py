@@ -234,6 +234,18 @@ class Availability(models.Model):
         verbose_name = 'Availability'
         verbose_name_plural = 'Availability Records'
         ordering = ['-updated_at']
+        constraints = [
+            models.CheckConstraint(
+                check=(
+                    models.Q(available_count__isnull=True)
+                    | models.Q(total_count__isnull=True)
+                    | models.Q(
+                        available_count__lte=models.F('total_count')
+                    )
+                ),
+                name='availability_count_lte_total',
+            ),
+        ]
 
     def __str__(self):
         return (

@@ -22,7 +22,7 @@ export const ProtectedRoute: React.FC<Props> = ({ children, allowedRoles }) => {
       system_admin: '/admin/dashboard',
       hospital_admin: '/hadmin/dashboard',
       hospital_staff: '/hadmin/dashboard',
-      health_worker: '/hw/dashboard',
+      health_worker: '/search',
       patient: '/search',
     };
     return <Navigate to={roleRedirects[user.role] || '/search'} replace />;

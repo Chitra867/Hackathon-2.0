@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import {
-  FiHome, FiSearch, FiList, FiPlusCircle, FiActivity,
+  FiHome, FiList, FiActivity,
   FiUsers, FiSettings, FiFileText, FiChevronLeft, FiChevronRight,
   FiBarChart2, FiMapPin, FiClock, FiShield,
 } from 'react-icons/fi';
@@ -33,13 +33,6 @@ const getNavItems = (role: string): NavItem[] => {
         { to: '/hadmin/referrals',        label: 'Referrals',           icon: <FiList /> },
         { to: '/hadmin/referral-history', label: 'Referral History',    icon: <FiClock /> },
         { to: '/hadmin/profile',          label: 'Hospital Profile',    icon: <FiSettings /> },
-      ];
-    case 'health_worker':
-      return [
-        { to: '/hw/dashboard',       label: 'Dashboard',     icon: <FiHome /> },
-        { to: '/search',             label: 'Find Hospital', icon: <FiSearch /> },
-        { to: '/hw/referrals/new',   label: 'New Referral',  icon: <FiPlusCircle /> },
-        { to: '/hw/referrals',       label: 'My Referrals',  icon: <FiList /> },
       ];
     default:
       return [];

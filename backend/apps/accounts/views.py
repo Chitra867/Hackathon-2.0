@@ -5,6 +5,11 @@ Handles authentication, registration, and user management.
 
 import logging
 from django.utils import timezone
+from django.conf import settings
+from django.core.mail import send_mail
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from rest_framework import generics, status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -128,7 +133,7 @@ class RegisterView(generics.CreateAPIView):
             actor=user,
             entity_type='User',
             entity_id=user.id,
-            description=f"Health worker '{user.username}' self-registered.",
+            description=f"User '{user.username}' self-registered as patient.",
             ip_address=get_client_ip(self.request),
         )
 
@@ -198,6 +203,135 @@ class ChangePasswordView(APIView):
         )
 
         return Response({'detail': 'Password changed successfully.'}, status=status.HTTP_200_OK)
+
+
+class ForgotPasswordView(APIView):
+    """
+    POST /api/auth/forgot-password/
+    Send a password reset link to the user's email.
+    Request body: { "email": "user@example.com" }
+    Always returns 200 to prevent email enumeration.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        if not email:
+            return Response(
+                {'detail': 'Email is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(email__iexact=email, is_active=True)
+        except User.DoesNotExist:
+            # Return 200 anyway to prevent email enumeration
+            return Response(
+                {'detail': 'If an account with that email exists, a reset link has been sent.'},
+                status=status.HTTP_200_OK
+            )
+
+        # Generate token
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        reset_link = f"{frontend_url}/reset-password/{uid}/{token}/"
+
+        # Send email (console backend in dev)
+        try:
+            send_mail(
+                subject='UpacharKhoj — Reset Your Password',
+                message=(
+                    f"Hello {user.first_name or user.username},\n\n"
+                    f"You requested a password reset for your UpacharKhoj account.\n\n"
+                    f"Click the link below to reset your password (valid for 1 hour):\n"
+                    f"{reset_link}\n\n"
+                    f"If you did not request this, you can safely ignore this email.\n\n"
+                    f"— UpacharKhoj Team"
+                ),
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            logger.error(f"Password reset email failed for {user.email}: {e}")
+
+        AuditLog.log(
+            action='password_reset_request',
+            actor=user,
+            entity_type='User',
+            entity_id=user.id,
+            description=f"Password reset requested for '{user.username}'.",
+            ip_address=get_client_ip(request),
+        )
+
+        return Response(
+            {'detail': 'If an account with that email exists, a reset link has been sent.'},
+            status=status.HTTP_200_OK
+        )
+
+
+class ResetPasswordConfirmView(APIView):
+    """
+    POST /api/auth/reset-password-confirm/
+    Confirm password reset using uid + token from email link.
+    Request body: { "uid": "...", "token": "...", "new_password": "...", "new_password2": "..." }
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        uid = request.data.get('uid', '')
+        token = request.data.get('token', '')
+        new_password = request.data.get('new_password', '')
+        new_password2 = request.data.get('new_password2', '')
+
+        if not uid or not token or not new_password:
+            return Response(
+                {'detail': 'uid, token and new_password are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if new_password != new_password2:
+            return Response(
+                {'new_password': 'Passwords do not match.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            pk = force_str(urlsafe_base64_decode(uid))
+            user = User.objects.get(pk=pk, is_active=True)
+        except (User.DoesNotExist, ValueError, TypeError, OverflowError):
+            return Response(
+                {'detail': 'Invalid reset link.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {'detail': 'Reset link has expired or is invalid. Please request a new one.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as e:
+            return Response({'new_password': list(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+
+        AuditLog.log(
+            action='password_reset_confirm',
+            actor=user,
+            entity_type='User',
+            entity_id=user.id,
+            description=f"Password reset completed for '{user.username}'.",
+            ip_address=get_client_ip(request),
+        )
+
+        return Response({'detail': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
 
 
 class UserViewSet(viewsets.ModelViewSet):
