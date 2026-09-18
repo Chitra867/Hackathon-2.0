@@ -6,6 +6,16 @@ A full-stack web application built with Django (Backend) and React + TypeScript 
 
 ---
 
+## 🚀 Quick Links
+
+- **[QUICK START](QUICK_START.md)** ⚡ - Start in 2 minutes
+- **[TROUBLESHOOTING](TROUBLESHOOTING.md)** 🔧 - Fix errors
+- **[CREDENTIALS](CREDENTIALS.md)** 🔐 - All login accounts
+
+**Having errors?** Run `fix_errors.bat` (Windows) or `./fix_errors.sh` (Linux/Mac)
+
+---
+
 ## 🎯 Project Overview
 
 UpacharKhoj Nepal solves a critical problem: **patients traveling long distances to hospitals only to find required services unavailable**. This platform allows:

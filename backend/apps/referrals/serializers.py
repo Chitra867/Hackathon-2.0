@@ -50,9 +50,9 @@ class ReferralCreateSerializer(serializers.ModelSerializer):
     """
     Serializer for health workers creating a referral.
     """
-    referring_facility = serializers.PrimaryKeyRelatedField(queryset=None)
-    destination_facility = serializers.PrimaryKeyRelatedField(queryset=None)
-    service = serializers.PrimaryKeyRelatedField(queryset=None, required=False, allow_null=True)
+    referring_facility = serializers.PrimaryKeyRelatedField(read_only=True)
+    destination_facility = serializers.PrimaryKeyRelatedField(read_only=True)
+    service = serializers.PrimaryKeyRelatedField(read_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Referral
@@ -65,9 +65,17 @@ class ReferralCreateSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from apps.hospitals.models import Hospital, Service
-        self.fields['referring_facility'].queryset = Hospital.objects.filter(is_active=True)
-        self.fields['destination_facility'].queryset = Hospital.objects.filter(is_active=True)
-        self.fields['service'].queryset = Service.objects.filter(is_active=True)
+        self.fields['referring_facility'] = serializers.PrimaryKeyRelatedField(
+            queryset=Hospital.objects.filter(is_active=True)
+        )
+        self.fields['destination_facility'] = serializers.PrimaryKeyRelatedField(
+            queryset=Hospital.objects.filter(is_active=True)
+        )
+        self.fields['service'] = serializers.PrimaryKeyRelatedField(
+            queryset=Service.objects.filter(is_active=True),
+            required=False,
+            allow_null=True
+        )
 
     def validate(self, attrs):
         if attrs.get('referring_facility') == attrs.get('destination_facility'):

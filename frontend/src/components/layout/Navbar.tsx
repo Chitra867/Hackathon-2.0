@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiMenu, FiX, FiBell, FiLogOut, FiUser, FiSearch } from 'react-icons/fi';
+import { FiMenu, FiX, FiBell, FiLogOut, FiUser, FiSearch, FiShield } from 'react-icons/fi';
 import { GiHeartPlus } from 'react-icons/gi';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
@@ -105,13 +105,23 @@ export const Navbar: React.FC = () => {
                 </div>
               </>
             ) : (
-              <Link
-                to="/login"
-                className="btn-primary btn-sm hidden md:flex"
-              >
-                <FiUser className="text-sm" />
-                Sign In
-              </Link>
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="btn-primary btn-sm"
+                >
+                  <FiUser className="text-sm" />
+                  Sign In
+                </Link>
+                <Link
+                  to="/login"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors"
+                  title="Admin Login"
+                >
+                  <FiShield className="text-sm" />
+                  Admin
+                </Link>
+              </div>
             )}
 
             {/* Mobile hamburger */}
@@ -151,13 +161,26 @@ export const Navbar: React.FC = () => {
                 </button>
               </>
             ) : (
-              <Link
-                to="/login"
-                className="block px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 rounded-lg"
-                onClick={() => setMenuOpen(false)}
-              >
-                Sign In
-              </Link>
+              <>
+                <Link
+                  to="/login"
+                  className="block px-3 py-2 text-sm font-medium text-primary-700 hover:bg-primary-50 rounded-lg"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiUser /> Sign In
+                  </span>
+                </Link>
+                <Link
+                  to="/login"
+                  className="block px-3 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 rounded-lg border border-amber-200"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="flex items-center gap-2">
+                    <FiShield /> Admin Login
+                  </span>
+                </Link>
+              </>
             )}
           </div>
         )}

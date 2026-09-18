@@ -59,7 +59,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     hospital = serializers.PrimaryKeyRelatedField(
         required=False,
         allow_null=True,
-        queryset=None  # Set dynamically in __init__
+        read_only=True  # queryset is set dynamically in __init__
     )
 
     class Meta:
@@ -72,7 +72,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from apps.hospitals.models import Hospital
-        self.fields['hospital'].queryset = Hospital.objects.filter(is_active=True)
+        self.fields['hospital'] = serializers.PrimaryKeyRelatedField(
+            required=False,
+            allow_null=True,
+            queryset=Hospital.objects.filter(is_active=True)
+        )
 
     def validate(self, attrs):
         if attrs['password'] != attrs.pop('password2'):
@@ -176,7 +180,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
     hospital = serializers.PrimaryKeyRelatedField(
         required=False,
         allow_null=True,
-        queryset=None
+        read_only=True  # queryset is set dynamically in __init__
     )
 
     class Meta:
@@ -189,7 +193,11 @@ class UserCreateSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from apps.hospitals.models import Hospital
-        self.fields['hospital'].queryset = Hospital.objects.all()
+        self.fields['hospital'] = serializers.PrimaryKeyRelatedField(
+            required=False,
+            allow_null=True,
+            queryset=Hospital.objects.all()
+        )
 
     def validate_password(self, value):
         validate_password(value)
