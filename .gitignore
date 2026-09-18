@@ -47,3 +47,11 @@ Thumbs.db
 .venv/
 
 db-backup-*.sqlite3
+
+# Python virtual environments
+venv/
+env/
+ENV/
+.venv/
+.venv*/
+backend/.venv312/

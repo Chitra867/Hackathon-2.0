@@ -22,7 +22,7 @@ import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { SearchPage } from './pages/public/SearchPage';
 import { HospitalDetailPage } from './pages/public/HospitalDetailPage';
 import { LoginPage } from './pages/public/LoginPage';
-
+import { AboutPage } from './pages/public/AboutPage';
 
 // ─────────────────────────────────────────────
 // Health Worker pages
@@ -133,6 +133,11 @@ function App() {
               />
             }
           />
+
+            <Route
+              path="/about"
+              element={<AboutPage />}
+              />
 
 
           {/* Hospital Details */}
