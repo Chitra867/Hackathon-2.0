@@ -45,3 +45,5 @@ dist-ssr/
 Thumbs.db
 
 .venv/
+
+db-backup-*.sqlite3
