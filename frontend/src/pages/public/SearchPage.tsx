@@ -14,8 +14,10 @@ import {
   FiMapPin,
   FiPhone,
   FiChevronRight,
-  FiAlertCircle,
   FiClock,
+  FiShield,
+  FiHeart,
+  FiUsers,
 } from 'react-icons/fi';
 
 import {
@@ -38,6 +40,8 @@ import {
 
 import { format } from 'date-fns';
 
+import heroImage from './images/hero.png';
+
 
 const NEPAL_DISTRICTS = [
   'Kathmandu',
@@ -59,6 +63,17 @@ const NEPAL_DISTRICTS = [
 ];
 
 
+const POPULAR_SERVICES = [
+  'ICU',
+  'Cardiology',
+  'Dialysis',
+  'MRI',
+  'CT Scan',
+  'Maternity',
+  'NICU',
+];
+
+
 export const SearchPage: React.FC = () => {
 
   const [
@@ -66,24 +81,20 @@ export const SearchPage: React.FC = () => {
     setSearchParams,
   ] = useSearchParams();
 
-
   const [
     hospitals,
     setHospitals,
   ] = useState<HospitalListItem[]>([]);
-
 
   const [
     services,
     setServices,
   ] = useState<Service[]>([]);
 
-
   const [
     loading,
     setLoading,
   ] = useState(true);
-
 
   const [
     total,
@@ -92,7 +103,7 @@ export const SearchPage: React.FC = () => {
 
 
   /* =========================================================
-     URL PARAMETERS
+    URL PARAMETERS
   ========================================================= */
 
   const serviceQ =
@@ -101,12 +112,9 @@ export const SearchPage: React.FC = () => {
   const districtQ =
     searchParams.get('district') || '';
 
-  const emergencyQ =
-    searchParams.get('emergency') === 'true';
-
 
   /* =========================================================
-     LOCAL INPUT STATE
+    LOCAL STATE
   ========================================================= */
 
   const [
@@ -114,21 +122,14 @@ export const SearchPage: React.FC = () => {
     setSearchInput,
   ] = useState(serviceQ);
 
-
   const [
     districtInput,
     setDistrictInput,
   ] = useState(districtQ);
 
 
-  const [
-    emergencyOnly,
-    setEmergencyOnly,
-  ] = useState(emergencyQ);
-
-
   /* =========================================================
-     LOAD HOSPITALS
+    LOAD HOSPITALS
   ========================================================= */
 
   const loadHospitals = useCallback(async () => {
@@ -137,30 +138,22 @@ export const SearchPage: React.FC = () => {
 
     try {
 
-      const params: Record<
-        string,
-        string | boolean
-      > = {};
-
+      const params: Record<string, string> = {};
 
       if (serviceQ) {
         params.service = serviceQ;
       }
 
-
       if (districtQ) {
         params.district = districtQ;
       }
 
-
       const response =
         await hospitalsApi.list(params);
-
 
       setHospitals(
         response.data.results
       );
-
 
       setTotal(
         response.data.count
@@ -173,9 +166,7 @@ export const SearchPage: React.FC = () => {
         error
       );
 
-
       setHospitals([]);
-
       setTotal(0);
 
     } finally {
@@ -195,7 +186,7 @@ export const SearchPage: React.FC = () => {
 
 
   /* =========================================================
-     LOAD SERVICES
+    LOAD SERVICES
   ========================================================= */
 
   useEffect(() => {
@@ -222,59 +213,22 @@ export const SearchPage: React.FC = () => {
 
 
   /* =========================================================
-     SYNC EMERGENCY FILTER WITH URL
-  ========================================================= */
-
-  useEffect(() => {
-
-    setEmergencyOnly(
-      emergencyQ
-    );
-
-  }, [emergencyQ]);
-
-
-  /* =========================================================
     SEARCH
   ========================================================= */
 
-  const handleSearch = (
-    isEmergency?: boolean
-  ) => {
+  const handleSearch = () => {
 
-    const params: Record<
-      string,
-      string
-    > = {};
-
+    const params: Record<string, string> = {};
 
     if (searchInput.trim()) {
-
       params.service =
         searchInput.trim();
-
     }
-
 
     if (districtInput) {
-
       params.district =
         districtInput;
-
     }
-
-
-    const emergency =
-      isEmergency ?? emergencyOnly;
-
-
-    if (emergency) {
-
-      params.emergency =
-        'true';
-
-    }
-
 
     setSearchParams(params);
 
@@ -286,16 +240,38 @@ export const SearchPage: React.FC = () => {
   ) => {
 
     if (event.key === 'Enter') {
-
       handleSearch();
-
     }
 
   };
 
 
   /* =========================================================
-     CLEAR FILTERS
+    QUICK SERVICE
+  ========================================================= */
+
+  const handleQuickService = (
+    serviceName: string
+  ) => {
+
+    setSearchInput(serviceName);
+
+    const params: Record<string, string> = {
+      service: serviceName,
+    };
+
+    if (districtInput) {
+      params.district =
+        districtInput;
+    }
+
+    setSearchParams(params);
+
+  };
+
+
+  /* =========================================================
+    CLEAR FILTERS
   ========================================================= */
 
   const clearAllFilters = () => {
@@ -304,15 +280,13 @@ export const SearchPage: React.FC = () => {
 
     setDistrictInput('');
 
-    setEmergencyOnly(false);
-
     setSearchParams({});
 
   };
 
 
   /* =========================================================
-     AVAILABILITY HELPERS
+    AVAILABILITY HELPERS
   ========================================================= */
 
   const getTopAvailability = (
@@ -332,61 +306,7 @@ export const SearchPage: React.FC = () => {
 
 
   /* =========================================================
-     CHECK EMERGENCY CAPABILITY
-  ========================================================= */
-
-  const isEmergencyCapable = (
-    hospital: HospitalListItem
-  ): boolean => {
-
-    return (
-
-      !!hospital.emergency_contact ||
-
-      hospital.services?.some(
-        (service) =>
-          service.service_name
-            .toLowerCase()
-            .includes('emergency')
-      ) ||
-
-      hospital.availability?.some(
-        (availability) =>
-
-          availability.availability_type
-            .toLowerCase()
-            .includes('emergency') &&
-
-          (
-            availability.status ===
-              'available' ||
-
-            availability.status ===
-              'limited'
-          )
-      ) ||
-
-      false
-
-    );
-
-  };
-
-
-  /* =========================================================
-     FILTER EMERGENCY HOSPITALS
-  ========================================================= */
-
-  const displayedHospitals =
-    emergencyOnly
-      ? hospitals.filter(
-          isEmergencyCapable
-        )
-      : hospitals;
-
-
-  /* =========================================================
-     GET BED COUNT
+     BED COUNT
   ========================================================= */
 
   const getBedCount = (
@@ -402,7 +322,6 @@ export const SearchPage: React.FC = () => {
               .availability_type
               .toLowerCase();
 
-
           return (
             type.includes('bed') ||
             type.includes('icu') ||
@@ -411,7 +330,6 @@ export const SearchPage: React.FC = () => {
 
         }
       );
-
 
     return (
       bedEntry?.available_count ??
@@ -422,7 +340,7 @@ export const SearchPage: React.FC = () => {
 
 
   /* =========================================================
-     GET RELEVANT AVAILABILITY
+     RELEVANT AVAILABILITY
   ========================================================= */
 
   const getRelevantAvail = (
@@ -437,10 +355,8 @@ export const SearchPage: React.FC = () => {
 
     }
 
-
     const query =
       serviceQ.toLowerCase();
-
 
     const serviceMatch =
       hospital.availability?.filter(
@@ -450,12 +366,10 @@ export const SearchPage: React.FC = () => {
             availability.service_name
               ?.toLowerCase() || '';
 
-
           const availabilityType =
             availability
               .availability_type
               .toLowerCase();
-
 
           return (
             serviceName.includes(query) ||
@@ -478,7 +392,6 @@ export const SearchPage: React.FC = () => {
 
     }
 
-
     return getTopAvailability(
       hospital
     );
@@ -492,640 +405,662 @@ export const SearchPage: React.FC = () => {
 
   return (
 
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-
-
-      {/* =====================================================
-          HERO
-      ===================================================== */}
-
-      <div className="text-center mb-8 pt-4">
-
-        <span
-          className="
-            inline-block
-            bg-blue-100
-            text-blue-700
-            text-xs
-            font-semibold
-            px-4
-            py-2
-            rounded-full
-            mb-4
-          "
-        >
-          Healthcare Availability & Referral Platform
-        </span>
-
-
-        <h1
-          className="
-            text-3xl
-            md:text-5xl
-            font-bold
-            text-gray-900
-          "
-        >
-          Find the right care{' '}
-
-          <span className="text-blue-600">
-            before you travel.
-          </span>
-
-        </h1>
-
-
-        <p
-          className="
-            mt-4
-            text-gray-500
-            max-w-2xl
-            mx-auto
-          "
-        >
-          Search hospitals by treatment,
-          bed availability, specialist
-          availability and emergency services.
-        </p>
-
-      </div>
-
-
-      {/* =====================================================
-          SEARCH BAR
-      ===================================================== */}
+    <div className="min-h-screen bg-[#f8f4eb]">
 
       <div
         className="
-          bg-white
-          rounded-xl
-          shadow-sm
-          border
-          border-gray-100
-          p-4
-          mb-4
+          mx-auto
+          max-w-7xl
+          px-4
+          py-6
+          sm:px-6
         "
       >
 
-        <div
+
+        {/* =====================================================
+            HERO
+        ===================================================== */}
+
+        <section
           className="
-            flex
-            flex-col
-            sm:flex-row
-            gap-3
-            mb-3
+            relative
+            mb-9
+            overflow-hidden
+            rounded-[30px]
+            border
+            border-[#dfd1b5]
+            shadow-[0_18px_45px_rgba(78,58,26,0.12)]
+            md:min-h-[450px]
           "
         >
 
 
-          {/* Service Search */}
+          {/* HERO IMAGE */}
 
-          <div className="relative flex-1">
+          <div
+            className="
+              absolute
+              inset-0
+              bg-cover
+              bg-no-repeat
+            "
+            style={{
+              backgroundImage:
+                `url(${heroImage})`,
 
-            <FiSearch
-              className="
-                absolute
-                left-3
-                top-1/2
-                -translate-y-1/2
-                text-gray-400
-              "
-            />
-
-
-            <input
-              type="text"
-              className="input pl-9"
-              placeholder="Search by service: ICU, MRI, Dialysis..."
-              value={searchInput}
-              onChange={(event) =>
-                setSearchInput(
-                  event.target.value
-                )
-              }
-              onKeyDown={handleKeyDown}
-              list="service-options"
-            />
-
-
-            <datalist id="service-options">
-
-              {services.map(
-                (service) => (
-
-                  <option
-                    key={service.id}
-                    value={service.name}
-                  />
-
-                )
-              )}
-
-            </datalist>
-
-          </div>
-
-
-          {/* District */}
-
-          <div className="relative sm:w-52">
-
-            <FiMapPin
-              className="
-                absolute
-                left-3
-                top-1/2
-                -translate-y-1/2
-                text-gray-400
-                z-10
-              "
-            />
-
-
-            <select
-              className="input pl-9"
-              value={districtInput}
-              onChange={(event) =>
-                setDistrictInput(
-                  event.target.value
-                )
-              }
-            >
-
-              <option value="">
-                All districts
-              </option>
-
-
-              {NEPAL_DISTRICTS.map(
-                (district) => (
-
-                  <option
-                    key={district}
-                    value={district}
-                  >
-                    {district}
-                  </option>
-
-                )
-              )}
-
-            </select>
-
-          </div>
-
-
-          {/* Search Button */}
-
-          <button
-            onClick={() =>
-              handleSearch(false)
-            }
-            className="btn-primary px-6"
-          >
-
-            <FiSearch />
-
-            Search
-
-          </button>
-
-
-          {/* Emergency Button */}
-
-          <button
-            onClick={() => {
-
-              setEmergencyOnly(true);
-
-              handleSearch(true);
-
+              /*
+               * Focus image more toward the monastery/stupa.
+               * Increase first value to move farther right.
+               * Decrease second value to move upward.
+               */
+              backgroundPosition: '72% 35%',
             }}
+          />
+
+
+          {/* LEFT OVERLAY */}
+
+          <div
             className="
-              px-4
-              py-2
-              bg-red-600
-              hover:bg-red-700
-              text-white
-              font-semibold
-              rounded-lg
-              flex
-              items-center
-              justify-center
-              gap-2
-              transition-colors
-              text-sm
+              absolute
+              inset-0
+              bg-gradient-to-r
+              from-[#faedd6]
+              via-[#f7ead3]/75
+              to-transparent
+            "
+          />
+
+
+          {/* BOTTOM OVERLAY */}
+
+          <div
+            className="
+              absolute
+              inset-0
+              bg-gradient-to-t
+              from-[#d8cbb3]/30
+              via-transparent
+              to-transparent
+            "
+          />
+
+
+          {/* HERO CONTENT */}
+
+          <div
+            className="
+              relative
+              z-10
+              px-7
+              pt-10
+              pb-8
+              md:px-11
+              md:pt-11
+              md:pb-[205px]
             "
           >
 
-            <FiAlertCircle />
+            <div className="max-w-[610px]">
 
-            Emergency
+              <h1
+                className="
+                  text-[39px]
+                  font-bold
+                  leading-[0.98]
+                  tracking-[-0.035em]
+                  text-[#13295b]
+                  sm:text-[48px]
+                  lg:text-[58px]
+                "
+              >
+                Find the right care
 
-          </button>
+                <span
+                  className="
+                    block
+                    text-[#08606a]
+                  "
+                >
+                  before you travel.
+                </span>
 
-        </div>
-
-
-        {/* ===================================================
-            EMERGENCY TOGGLE
-        =================================================== */}
-
-        <div className="flex items-center gap-3">
-
-          <label
-            className="
-              flex
-              items-center
-              gap-2
-              cursor-pointer
-              select-none
-            "
-          >
-
-            <div className="relative">
-
-              <input
-                type="checkbox"
-                className="sr-only"
-                checked={emergencyOnly}
-                onChange={(event) => {
-
-                  const checked =
-                    event.target.checked;
+              </h1>
 
 
-                  setEmergencyOnly(
-                    checked
-                  );
+              <p
+                className="
+                  mt-5
+                  max-w-[520px]
+                  text-[15px]
+                  leading-6
+                  text-[#3f4851]
+                  md:text-base
+                "
+              >
+                Search hospitals by treatment,
+                service, bed availability and
+                specialist availability across Nepal.
+              </p>
 
 
-                  const params: Record<
-                    string,
-                    string
-                  > = {};
-
-
-                  if (serviceQ) {
-
-                    params.service =
-                      serviceQ;
-
-                  }
-
-
-                  if (districtQ) {
-
-                    params.district =
-                      districtQ;
-
-                  }
-
-
-                  if (checked) {
-
-                    params.emergency =
-                      'true';
-
-                  }
-
-
-                  setSearchParams(
-                    params
-                  );
-
-                }}
-              />
-
+              {/* BENEFITS */}
 
               <div
-                className={`
-                  w-10
-                  h-5
-                  rounded-full
-                  transition-colors
+                className="
+                  mt-6
+                  flex
+                  flex-wrap
+                  gap-x-6
+                  gap-y-3
+                  text-sm
+                  font-medium
+                  text-[#4b4e47]
+                "
+              >
 
-                  ${
-                    emergencyOnly
-                      ? 'bg-red-500'
-                      : 'bg-gray-300'
-                  }
-                `}
-              />
+                <span
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                  "
+                >
+                  <FiShield className="text-[#c08c2d]" />
+
+                  Real-time availability
+                </span>
 
 
-              <div
-                className={`
-                  absolute
-                  top-0.5
-                  left-0.5
-                  w-4
-                  h-4
-                  bg-white
-                  rounded-full
-                  shadow
-                  transition-transform
+                <span
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                  "
+                >
+                  <FiUsers className="text-[#c08c2d]" />
 
-                  ${
-                    emergencyOnly
-                      ? 'translate-x-5'
-                      : 'translate-x-0'
-                  }
-                `}
-              />
+                  Verified hospitals
+                </span>
+
+
+                <span
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                  "
+                >
+                  <FiHeart className="text-[#c08c2d]" />
+
+                  Safer referrals
+                </span>
+
+              </div>
 
             </div>
 
-
-            <span
-              className={`
-                text-sm
-                font-medium
-
-                ${
-                  emergencyOnly
-                    ? 'text-red-700'
-                    : 'text-gray-600'
-                }
-              `}
-            >
-
-              {emergencyOnly
-                ? '🚨 Emergency filter ON — showing emergency-capable hospitals only'
-                : 'Show emergency-capable hospitals only'}
-
-            </span>
-
-          </label>
+          </div>
 
 
-          {emergencyOnly && (
+          {/* =====================================================
+              SEARCH PANEL
+          ===================================================== */}
 
-            <button
-              onClick={() => {
-
-                setEmergencyOnly(false);
-
-
-                const params: Record<
-                  string,
-                  string
-                > = {};
-
-
-                if (serviceQ) {
-
-                  params.service =
-                    serviceQ;
-
-                }
-
-
-                if (districtQ) {
-
-                  params.district =
-                    districtQ;
-
-                }
-
-
-                setSearchParams(
-                  params
-                );
-
-              }}
-              className="
-                text-xs
-                text-gray-500
-                hover:text-red-600
-                underline
-              "
-            >
-              Clear
-            </button>
-
-          )}
-
-        </div>
-
-      </div>
-
-
-      {/* =====================================================
-          RESULTS HEADER
-      ===================================================== */}
-
-      <div
-        className="
-          flex
-          items-center
-          justify-between
-          mb-4
-        "
-      >
-
-        <div className="text-sm text-gray-600">
-
-          {loading
-            ? 'Searching...'
-            : (
-              <>
-
-                {displayedHospitals.length >
-                0 ? (
-
-                  <span>
-
-                    <strong>
-                      {
-                        displayedHospitals.length
-                      }
-                    </strong>
-
-
-                    {emergencyOnly &&
-                      total !==
-                        displayedHospitals.length &&
-                      ` of ${total}`}
-
-
-                    {' hospital'}
-
-                    {displayedHospitals.length !==
-                    1
-                      ? 's'
-                      : ''}
-
-
-                    {' found'}
-
-
-                    {serviceQ
-                      ? ` for "${serviceQ}"`
-                      : ''}
-
-
-                    {districtQ
-                      ? ` in ${districtQ}`
-                      : ''}
-
-
-                    {emergencyOnly && (
-
-                      <span
-                        className="
-                          ml-1
-                          text-red-600
-                          font-medium
-                        "
-                      >
-                        · Emergency filter active
-                      </span>
-
-                    )}
-
-                  </span>
-
-                ) : (
-
-                  <span>
-
-                    No results
-
-                    {emergencyOnly
-                      ? ' with emergency capability'
-                      : ''}
-
-                  </span>
-
-                )}
-
-              </>
-            )}
-
-        </div>
-
-
-        {(serviceQ ||
-          districtQ ||
-          emergencyOnly) && (
-
-          <button
-            onClick={
-              clearAllFilters
-            }
+          <div
             className="
-              text-xs
-              text-gray-500
-              hover:text-red-600
-              underline
+              relative
+              z-20
+              mx-4
+              mb-5
+              mt-5
+              md:absolute
+              md:bottom-5
+              md:left-8
+              md:right-8
+              md:m-0
             "
           >
 
-            Clear all filters
-
-          </button>
-
-        )}
-
-      </div>
-
-
-      {/* =====================================================
-          RESULTS
-      ===================================================== */}
-
-      {loading ? (
-
-        <LoadingSpinner
-          text="Finding suitable hospitals..."
-        />
-
-      ) : displayedHospitals.length ===
-        0 ? (
-
-        <EmptyState
-          icon="🏥"
-
-          title={
-            emergencyOnly
-              ? 'No emergency-capable hospitals found'
-              : 'No hospitals found'
-          }
-
-          description={
-            emergencyOnly
-
-              ? 'No hospitals with emergency services were found matching your filters. Try removing the emergency filter or changing your district.'
-
-              : serviceQ
-
-              ? `No hospitals currently report "${serviceQ}" as a service. Try a different term or remove the district filter.`
-
-              : 'Try searching for ICU, Cardiology, MRI, Dialysis or another healthcare service.'
-          }
-
-          action={
-
             <div
               className="
-                flex
-                gap-3
-                flex-wrap
-                justify-center
+                rounded-[22px]
+                border
+                border-white/60
+                bg-gradient-to-r
+                from-[#f7eee0]/95
+                via-[#aabfba]/95
+                to-[#08616b]/95
+                p-4
+                shadow-[0_14px_35px_rgba(25,59,62,0.25)]
+                backdrop-blur-md
               "
             >
 
-              {emergencyOnly && (
+
+              {/* SEARCH INPUTS */}
+
+              <div
+                className="
+                  grid
+                  grid-cols-1
+                  items-end
+                  gap-3
+                  md:grid-cols-[1.5fr_0.8fr_auto]
+                "
+              >
+
+
+                {/* SERVICE */}
+
+                <div>
+
+                  <label
+                    className="
+                      mb-1.5
+                      block
+                      text-[11px]
+                      font-semibold
+                      text-[#334155]
+                    "
+                  >
+                    What service do you need?
+                  </label>
+
+
+                  <div className="relative">
+
+                    <FiSearch
+                      className="
+                        absolute
+                        left-3
+                        top-1/2
+                        -translate-y-1/2
+                        text-gray-400
+                      "
+                    />
+
+
+                    <input
+                      type="text"
+                      value={
+                        searchInput
+                      }
+                      onChange={(event) =>
+                        setSearchInput(
+                          event.target.value
+                        )
+                      }
+                      onKeyDown={
+                        handleKeyDown
+                      }
+                      list="service-options"
+                      placeholder="e.g. ICU, Dialysis, Cardiology, Maternity..."
+                      className="
+                        h-11
+                        w-full
+                        rounded-lg
+                        border
+                        border-white/80
+                        bg-white/95
+                        pl-9
+                        pr-3
+                        text-sm
+                        text-gray-800
+                        outline-none
+                        shadow-sm
+                        focus:border-[#0c6670]
+                        focus:ring-2
+                        focus:ring-[#0c6670]/20
+                      "
+                    />
+
+
+                    <datalist id="service-options">
+
+                      {services.map(
+                        (service) => (
+
+                          <option
+                            key={service.id}
+                            value={service.name}
+                          />
+
+                        )
+                      )}
+
+                    </datalist>
+
+                  </div>
+
+                </div>
+
+
+                {/* DISTRICT */}
+
+                <div>
+
+                  <label
+                    className="
+                      mb-1.5
+                      block
+                      text-[11px]
+                      font-semibold
+                      text-[#334155]
+                    "
+                  >
+                    Select District
+                  </label>
+
+
+                  <div className="relative">
+
+                    <FiMapPin
+                      className="
+                        absolute
+                        left-3
+                        top-1/2
+                        z-10
+                        -translate-y-1/2
+                        text-gray-500
+                      "
+                    />
+
+
+                    <select
+                      value={
+                        districtInput
+                      }
+                      onChange={(event) =>
+                        setDistrictInput(
+                          event.target.value
+                        )
+                      }
+                      className="
+                        h-11
+                        w-full
+                        rounded-lg
+                        border
+                        border-white/80
+                        bg-white/95
+                        pl-9
+                        pr-3
+                        text-sm
+                        text-gray-800
+                        outline-none
+                      "
+                    >
+
+                      <option value="">
+                        All Districts
+                      </option>
+
+
+                      {NEPAL_DISTRICTS.map(
+                        (district) => (
+
+                          <option
+                            key={district}
+                            value={district}
+                          >
+                            {district}
+                          </option>
+
+                        )
+                      )}
+
+                    </select>
+
+                  </div>
+
+                </div>
+
+
+                {/* SEARCH BUTTON */}
 
                 <button
-                  onClick={() => {
-
-                    setEmergencyOnly(
-                      false
-                    );
-
-
-                    const params: Record<
-                      string,
-                      string
-                    > = {};
-
-
-                    if (serviceQ) {
-
-                      params.service =
-                        serviceQ;
-
-                    }
-
-
-                    if (districtQ) {
-
-                      params.district =
-                        districtQ;
-
-                    }
-
-
-                    setSearchParams(
-                      params
-                    );
-
-                  }}
+                  onClick={
+                    handleSearch
+                  }
                   className="
-                    btn-primary
-                    btn-sm
+                    flex
+                    h-11
+                    items-center
+                    justify-center
+                    gap-2
+                    rounded-lg
+                    border
+                    border-[#d8b970]/60
+                    bg-[#07545e]
+                    px-8
+                    text-sm
+                    font-semibold
+                    text-white
+                    shadow-lg
+                    transition-all
+                    hover:bg-[#043f47]
                   "
                 >
+                  <FiSearch />
 
-                  Remove Emergency Filter
-
+                  Search Hospitals
                 </button>
 
+              </div>
+
+
+              {/* POPULAR SERVICES */}
+
+              <div
+                className="
+                  mt-4
+                  flex
+                  items-center
+                  gap-2
+                  overflow-x-auto
+                  pb-1
+                "
+              >
+
+                <span
+                  className="
+                    mr-1
+                    flex-shrink-0
+                    text-xs
+                    font-semibold
+                    text-[#30474a]
+                  "
+                >
+                  Popular Services
+                </span>
+
+
+                {POPULAR_SERVICES.map(
+                  (service) => {
+
+                    const active =
+                      serviceQ
+                        .toLowerCase() ===
+                      service
+                        .toLowerCase();
+
+
+                    return (
+
+                      <button
+                        key={service}
+                        type="button"
+                        onClick={() =>
+                          handleQuickService(
+                            service
+                          )
+                        }
+                        className={`
+                          flex-shrink-0
+                          rounded-full
+                          border
+                          px-4
+                          py-2
+                          text-xs
+                          font-medium
+                          transition-all
+
+                          ${
+                            active
+
+                              ? `
+                                border-[#07545e]
+                                bg-[#07545e]
+                                text-white
+                              `
+
+                              : `
+                                border-white/60
+                                bg-white/70
+                                text-[#45555a]
+                                hover:bg-white
+                                hover:text-[#07545e]
+                              `
+                          }
+                        `}
+                      >
+                        {service}
+                      </button>
+
+                    );
+
+                  }
+                )}
+
+
+                {(serviceQ ||
+                  districtQ) && (
+
+                  <button
+                    onClick={
+                      clearAllFilters
+                    }
+                    className="
+                      ml-auto
+                      flex-shrink-0
+                      text-xs
+                      font-semibold
+                      text-white
+                      hover:underline
+                    "
+                  >
+                    Clear Filters
+                  </button>
+
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        {/* =====================================================
+            FEATURED HOSPITALS
+        ===================================================== */}
+
+        <div
+          className="
+            mb-5
+            flex
+            flex-col
+            justify-between
+            gap-3
+            sm:flex-row
+            sm:items-end
+          "
+        >
+
+          <div>
+
+            <h2
+              className="
+                text-2xl
+                font-bold
+                text-[#172554]
+              "
+            >
+              Featured Hospitals
+            </h2>
+
+
+            <p
+              className="
+                mt-1
+                text-sm
+                text-[#64748b]
+              "
+            >
+              Live hospital information from across Nepal
+            </p>
+
+          </div>
+
+
+          <div className="text-sm text-[#64748b]">
+
+            {loading
+              ? 'Searching...'
+              : (
+                <>
+                  <strong className="text-[#172554]">
+                    {total}
+                  </strong>
+
+                  {' hospital'}
+
+                  {total !== 1
+                    ? 's'
+                    : ''}
+
+                  {' found'}
+
+                  {serviceQ
+                    ? ` for "${serviceQ}"`
+                    : ''}
+
+                  {districtQ
+                    ? ` in ${districtQ}`
+                    : ''}
+                </>
               )}
 
+          </div>
 
+        </div>
+
+
+        {/* =====================================================
+            RESULTS
+        ===================================================== */}
+
+        {loading ? (
+
+          <LoadingSpinner
+            text="Finding suitable hospitals..."
+          />
+
+        ) : hospitals.length === 0 ? (
+
+          <EmptyState
+            icon="🏥"
+            title="No hospitals found"
+            description={
+              serviceQ
+                ? `No hospitals currently report "${serviceQ}" as a service. Try another service or district.`
+                : 'Try searching for ICU, Cardiology, MRI, Dialysis or another healthcare service.'
+            }
+            action={
               <button
                 onClick={
                   clearAllFilters
@@ -1135,696 +1070,605 @@ export const SearchPage: React.FC = () => {
                   btn-sm
                 "
               >
-
                 Clear Search
-
               </button>
+            }
+          />
 
-            </div>
+        ) : (
 
-          }
-        />
+          <>
 
-      ) : (
+            <div
+              className="
+                grid
+                gap-5
+                md:grid-cols-2
+                xl:grid-cols-3
+              "
+            >
 
-        <div
-          className="
-            grid
-            gap-4
-            md:grid-cols-2
-            xl:grid-cols-3
-          "
-        >
+              {hospitals.map(
+                (hospital) => {
 
-          {displayedHospitals.map(
-            (hospital) => {
-
-
-              const avail =
-                getRelevantAvail(
-                  hospital
-                );
+                  const avail =
+                    getRelevantAvail(
+                      hospital
+                    );
 
 
-              const hasStale =
-                avail.some(
-                  (availability) =>
-                    availability
-                      .freshness_label ===
-                    'stale'
-                );
-
-
-              const bedCount =
-                getBedCount(
-                  hospital
-                );
-
-
-              const emergencyCapable =
-                isEmergencyCapable(
-                  hospital
-                );
-
-
-              /* Most recent update */
-
-              const latestUpdate =
-                avail.length > 0
-
-                  ? avail.reduce(
+                  const hasStale =
+                    avail.some(
                       (
-                        latest,
                         availability
-                      ) => {
+                      ) =>
+                        availability
+                          .freshness_label ===
+                        'stale'
+                    );
 
-                        return (
-                          new Date(
-                            availability.updated_at
-                          ) >
-                          new Date(
-                            latest.updated_at
-                          )
+
+                  const bedCount =
+                    getBedCount(
+                      hospital
+                    );
+
+
+                  const latestUpdate =
+                    avail.length > 0
+
+                      ? avail.reduce(
+                          (
+                            latest,
+                            availability
+                          ) =>
+                            new Date(
+                              availability.updated_at
+                            ) >
+                            new Date(
+                              latest.updated_at
+                            )
+                              ? availability
+                              : latest
                         )
-                          ? availability
-                          : latest;
 
-                      }
-                    )
-
-                  : null;
+                      : null;
 
 
-              return (
+                  return (
 
-                <div
-                  key={hospital.id}
-                  className={`
-                    card
-                    hover:shadow-md
-                    transition-shadow
-                    border
-
-                    ${
-                      emergencyOnly &&
-                      emergencyCapable
-
-                        ? `
-                          border-red-300
-                          bg-red-50/30
-                        `
-
-                        : hasStale
-
-                        ? `
-                          border-orange-200
-                        `
-
-                        : `
-                          border-gray-100
-                        `
-                    }
-                  `}
-                >
-
-
-                  {/* =========================================
-                      EMERGENCY BADGE
-                  ========================================= */}
-
-                  {emergencyCapable && (
-
-                    <div
+                    <article
+                      key={hospital.id}
                       className="
-                        flex
-                        items-center
-                        gap-1
-                        text-xs
-                        text-red-700
-                        font-medium
-                        bg-red-50
+                        overflow-hidden
+                        rounded-[20px]
                         border
-                        border-red-100
-                        rounded
-                        px-2
-                        py-0.5
-                        mb-2
-                        w-fit
+                        border-[#dfd4bf]
+                        bg-white
+                        shadow-[0_7px_24px_rgba(63,50,29,0.08)]
+                        transition-all
+                        duration-200
+                        hover:-translate-y-1
+                        hover:shadow-[0_16px_35px_rgba(63,50,29,0.13)]
                       "
                     >
 
-                      <FiAlertCircle
-                        className="
-                          flex-shrink-0
-                        "
-                      />
 
-                      Emergency Services Available
-
-                    </div>
-
-                  )}
-
-
-                  {/* =========================================
-                      HEADER
-                  ========================================= */}
-
-                  <div
-                    className="
-                      flex
-                      items-start
-                      justify-between
-                      mb-2
-                    "
-                  >
-
-                    <div
-                      className="
-                        flex-1
-                        min-w-0
-                      "
-                    >
-
-                      <h3
-                        className="
-                          font-semibold
-                          text-gray-900
-                          text-base
-                          leading-tight
-                          truncate
-                        "
-                      >
-
-                        {hospital.name}
-
-                      </h3>
-
+                      {/* CARD TOP */}
 
                       <div
                         className="
-                          flex
-                          items-center
-                          gap-1
-                          text-sm
-                          text-gray-500
-                          mt-1
+                          relative
+                          min-h-[105px]
+                          bg-gradient-to-r
+                          from-[#dae8df]
+                          via-[#f2eadb]
+                          to-[#b7d3d5]
+                          p-4
                         "
                       >
 
-                        <FiMapPin
-                          className="
-                            flex-shrink-0
-                            text-xs
-                          "
-                        />
-
-
-                        <span className="truncate">
-
-                          {hospital.district}
-
-                          {hospital.municipality
-                            ? `, ${hospital.municipality}`
-                            : ''}
-
-                        </span>
-
-
-                        {hospital.distance_km !=
-                          null && (
+                        <div className="flex justify-end">
 
                           <span
                             className="
-                              ml-1
-                              text-primary-600
-                              font-medium
-                              text-xs
-                              flex-shrink-0
+                              rounded-full
+                              bg-white/90
+                              px-2.5
+                              py-1
+                              text-[10px]
+                              font-semibold
+                              capitalize
+                              text-[#2563eb]
+                              shadow-sm
                             "
                           >
-
-                            ·{' '}
-                            {
-                              hospital.distance_km.toFixed(
-                                1
-                              )
-                            }{' '}
-                            km
-
+                            {hospital.type_display ||
+                              hospital.type}
                           </span>
 
-                        )}
-
-                      </div>
-
-                    </div>
+                        </div>
 
 
-                    <span
-                      className="
-                        badge
-                        bg-blue-50
-                        text-blue-700
-                        ml-2
-                        flex-shrink-0
-                        capitalize
-                      "
-                    >
-
-                      {hospital.type_display ||
-                        hospital.type}
-
-                    </span>
-
-                  </div>
-
-
-                  {/* =========================================
-                      BED COUNT
-                  ========================================= */}
-
-                  {bedCount != null && (
-
-                    <div
-                      className="
-                        flex
-                        items-center
-                        gap-1.5
-                        text-xs
-                        mb-2
-                        text-gray-700
-                      "
-                    >
-
-                      <span className="font-medium">
-
-                        🛏 Available beds:
-
-                      </span>
-
-
-                      <span
-                        className={`
-                          font-bold
-
-                          ${
-                            bedCount === 0
-
-                              ? 'text-red-600'
-
-                              : bedCount < 5
-
-                              ? 'text-orange-600'
-
-                              : 'text-green-700'
-                          }
-                        `}
-                      >
-
-                        {bedCount}
-
-                      </span>
-
-                    </div>
-
-                  )}
-
-
-                  {/* =========================================
-                      SERVICES
-                  ========================================= */}
-
-                  {hospital.services &&
-                    hospital.services.length >
-                      0 && (
-
-                    <div
-                      className="
-                        flex
-                        flex-wrap
-                        gap-1
-                        mb-3
-                      "
-                    >
-
-                      {hospital.services
-                        .slice(0, 4)
-                        .map(
-                          (service) => (
-
-                            <span
-                              key={
-                                service.id
-                              }
-                              className="
-                                text-xs
-                                bg-gray-100
-                                text-gray-600
-                                px-2
-                                py-0.5
-                                rounded-full
-                              "
-                            >
-
-                              {
-                                service.service_name
-                              }
-
-                            </span>
-
-                          )
-                        )}
-
-
-                      {hospital.services.length >
-                        4 && (
-
-                        <span
+                        <h3
                           className="
+                            mt-4
+                            truncate
+                            text-lg
+                            font-bold
+                            text-[#172554]
+                          "
+                        >
+                          {hospital.name}
+                        </h3>
+
+
+                        <div
+                          className="
+                            mt-1
+                            flex
+                            items-center
+                            gap-1
                             text-xs
-                            text-gray-400
+                            text-[#5c6470]
                           "
                         >
 
-                          +
-                          {
-                            hospital.services
-                              .length - 4
-                          }{' '}
-                          more
-
-                        </span>
-
-                      )}
-
-                    </div>
-
-                  )}
+                          <FiMapPin />
 
 
-                  {/* =========================================
-                      AVAILABILITY
-                  ========================================= */}
+                          <span className="truncate">
 
-                  {avail.length > 0 ? (
+                            {hospital.district}
 
-                    <div
-                      className="
-                        border-t
-                        border-gray-100
-                        pt-3
-                        mb-3
-                        space-y-2
-                      "
-                    >
+                            {hospital.municipality
+                              ? `, ${hospital.municipality}`
+                              : ''}
 
-                      {avail.map(
-                        (availability) => (
+                          </span>
 
-                          <div
-                            key={
-                              availability.id
-                            }
-                            className="
-                              flex
-                              items-center
-                              justify-between
-                              gap-2
-                              text-xs
-                            "
-                          >
+
+                          {hospital.distance_km !=
+                            null && (
 
                             <span
                               className="
-                                text-gray-600
-                                capitalize
+                                ml-auto
+                                flex-shrink-0
+                                font-semibold
+                                text-[#07545e]
                               "
                             >
+                              {
+                                hospital.distance_km.toFixed(
+                                  1
+                                )
+                              }{' '}
+                              km
+                            </span>
 
-                              {availability.availability_type_display ||
-                                availability.availability_type}
+                          )}
+
+                        </div>
+
+                      </div>
 
 
-                              {availability.available_count !=
-                                null && (
+                      {/* CARD CONTENT */}
 
-                                <span
+                      <div className="p-4">
+
+
+                        {/* SERVICES */}
+
+                        {hospital.services &&
+                          hospital.services.length >
+                            0 && (
+
+                          <div
+                            className="
+                              mb-3
+                              flex
+                              flex-wrap
+                              gap-1.5
+                            "
+                          >
+
+                            {hospital.services
+                              .slice(0, 4)
+                              .map(
+                                (
+                                  service
+                                ) => (
+
+                                  <span
+                                    key={
+                                      service.id
+                                    }
+                                    className="
+                                      rounded-full
+                                      bg-[#f5efe3]
+                                      px-2.5
+                                      py-1
+                                      text-[10px]
+                                      font-medium
+                                      text-[#6a5a43]
+                                    "
+                                  >
+                                    {
+                                      service.service_name
+                                    }
+                                  </span>
+
+                                )
+                              )}
+
+
+                            {hospital.services.length >
+                              4 && (
+
+                              <span
+                                className="
+                                  rounded-full
+                                  bg-gray-100
+                                  px-2.5
+                                  py-1
+                                  text-[10px]
+                                  text-gray-500
+                                "
+                              >
+                                +
+                                {
+                                  hospital.services
+                                    .length - 4
+                                }{' '}
+                                more
+                              </span>
+
+                            )}
+
+                          </div>
+
+                        )}
+
+
+                        {/* AVAILABILITY */}
+
+                        {avail.length > 0 ? (
+
+                          <div
+                            className="
+                              mb-4
+                              space-y-2
+                            "
+                          >
+
+                            {avail.map(
+                              (
+                                availability
+                              ) => (
+
+                                <div
+                                  key={
+                                    availability.id
+                                  }
                                   className="
-                                    ml-1
-                                    font-medium
+                                    rounded-xl
+                                    border
+                                    border-[#eee4d4]
+                                    bg-[#fcfaf6]
+                                    p-3
                                   "
                                 >
 
-                                  (
-                                  {
-                                    availability.available_count
-                                  }
-                                  )
+                                  <div
+                                    className="
+                                      flex
+                                      items-center
+                                      justify-between
+                                      gap-2
+                                    "
+                                  >
 
-                                </span>
+                                    <span
+                                      className="
+                                        text-xs
+                                        font-medium
+                                        capitalize
+                                        text-[#475569]
+                                      "
+                                    >
+                                      {availability.availability_type_display ||
+                                        availability.availability_type}
+                                    </span>
 
+
+                                    <StatusBadge
+                                      status={
+                                        availability.status
+                                      }
+                                      size="sm"
+                                    />
+
+                                  </div>
+
+
+                                  <div
+                                    className="
+                                      mt-2
+                                      flex
+                                      items-center
+                                      justify-between
+                                      gap-2
+                                    "
+                                  >
+
+                                    {availability.available_count !=
+                                      null && (
+
+                                      <span
+                                        className="
+                                          text-[10px]
+                                          text-[#64748b]
+                                        "
+                                      >
+                                        {
+                                          availability.available_count
+                                        }{' '}
+                                        available
+                                      </span>
+
+                                    )}
+
+
+                                    <FreshnessTag
+                                      label={
+                                        availability.freshness_label
+                                      }
+                                    />
+
+                                  </div>
+
+                                </div>
+
+                              )
+                            )}
+
+                          </div>
+
+                        ) : (
+
+                          <div
+                            className="
+                              mb-4
+                              rounded-xl
+                              border
+                              border-[#eee4d4]
+                              bg-[#fcfaf6]
+                              p-3
+                            "
+                          >
+
+                            <p
+                              className="
+                                text-xs
+                                font-semibold
+                                text-[#475569]
+                              "
+                            >
+                              Live availability not reported
+                            </p>
+
+
+                            <p
+                              className="
+                                mt-1
+                                text-[10px]
+                                text-[#94a3b8]
+                              "
+                            >
+                              Contact the hospital to confirm current availability.
+                            </p>
+
+                          </div>
+
+                        )}
+
+
+                        {/* BEDS + UPDATE */}
+
+                        <div
+                          className="
+                            mb-3
+                            flex
+                            flex-wrap
+                            items-center
+                            justify-between
+                            gap-2
+                            text-xs
+                          "
+                        >
+
+                          {bedCount != null && (
+
+                            <span
+                              className="
+                                font-medium
+                                text-[#475569]
+                              "
+                            >
+                              🛏 Beds:{' '}
+
+                              <strong
+                                className={
+                                  bedCount === 0
+                                    ? 'text-red-600'
+                                    : bedCount < 5
+                                    ? 'text-amber-600'
+                                    : 'text-emerald-700'
+                                }
+                              >
+                                {bedCount}
+                              </strong>
+
+                            </span>
+
+                          )}
+
+
+                          {latestUpdate && (
+
+                            <span
+                              className="
+                                flex
+                                items-center
+                                gap-1
+                                text-[#94a3b8]
+                              "
+                            >
+
+                              <FiClock />
+
+                              {format(
+                                new Date(
+                                  latestUpdate.updated_at
+                                ),
+                                'MMM d, HH:mm'
                               )}
 
                             </span>
 
+                          )}
 
-                            <div
+                        </div>
+
+
+                        {/* STALE WARNING */}
+
+                        {hasStale && (
+
+                          <div
+                            className="
+                              mb-3
+                              rounded-lg
+                              bg-amber-50
+                              px-3
+                              py-2
+                              text-[10px]
+                              text-amber-700
+                            "
+                          >
+                            ⚠ Some data may be outdated.
+                            Contact the hospital to confirm.
+                          </div>
+
+                        )}
+
+
+                        {/* FOOTER */}
+
+                        <div
+                          className="
+                            flex
+                            items-center
+                            justify-between
+                            gap-3
+                            border-t
+                            border-[#eee4d4]
+                            pt-3
+                          "
+                        >
+
+                          {hospital.phone ? (
+
+                            <a
+                              href={`tel:${hospital.phone}`}
                               className="
                                 flex
                                 items-center
-                                gap-1.5
+                                gap-1
+                                text-xs
+                                font-medium
+                                text-[#07545e]
+                                hover:underline
                               "
                             >
+                              <FiPhone />
 
-                              <StatusBadge
-                                status={
-                                  availability.status
-                                }
-                                size="sm"
-                              />
+                              {hospital.phone}
+                            </a>
 
+                          ) : (
 
-                              {/* FIXED:
-                                  FreshnessTag does not use size prop */}
+                            <span />
 
-                              <FreshnessTag
-                                label={
-                                  availability.freshness_label
-                                }
-                              />
-
-                            </div>
-
-                          </div>
-
-                        )
-                      )}
-
-                    </div>
-
-                  ) : (
-
-                    <div
-                      className="
-                        border-t
-                        border-gray-100
-                        pt-3
-                        mb-3
-                      "
-                    >
-
-                      <div
-                        className="
-                          bg-gray-50
-                          border
-                          border-gray-100
-                          rounded-lg
-                          p-3
-                        "
-                      >
-
-                        <p
-                          className="
-                            text-sm
-                            font-medium
-                            text-gray-700
-                          "
-                        >
-
-                          Live availability not reported
-
-                        </p>
+                          )}
 
 
-                        <p
-                          className="
-                            text-xs
-                            text-gray-400
-                            mt-1
-                          "
-                        >
+                          <Link
+                            to={`/hospital/${hospital.id}`}
+                            className="
+                              inline-flex
+                              items-center
+                              gap-1.5
+                              rounded-lg
+                              bg-[#07545e]
+                              px-4
+                              py-2
+                              text-xs
+                              font-semibold
+                              text-white
+                              shadow-sm
+                              transition
+                              hover:bg-[#043f47]
+                            "
+                          >
+                            View Details
 
-                          View hospital details or call
-                          to confirm current availability.
+                            <FiChevronRight />
+                          </Link>
 
-                        </p>
+                        </div>
 
                       </div>
 
-                    </div>
+                    </article>
 
-                  )}
+                  );
 
+                }
+              )}
 
-                  {/* =========================================
-                      LAST UPDATED
-                  ========================================= */}
-
-                  {latestUpdate && (
-
-                    <div
-                      className="
-                        flex
-                        items-center
-                        gap-1
-                        text-xs
-                        text-gray-400
-                        mb-2
-                      "
-                    >
-
-                      <FiClock
-                        className="
-                          flex-shrink-0
-                        "
-                      />
+            </div>
 
 
-                      <span>
+            {/* DISCLAIMER */}
 
-                        Updated{' '}
+            <div
+              className="
+                mt-6
+                rounded-xl
+                border
+                border-[#dfbf75]
+                bg-[#fff6de]
+                px-4
+                py-3
+                text-center
+                text-xs
+                text-[#996a00]
+              "
+            >
+              ⚠ Availability information is
+              hospital-reported and may change.
+              Please confirm with the receiving
+              hospital before patient transfer.
+            </div>
 
-                        {format(
-                          new Date(
-                            latestUpdate.updated_at
-                          ),
-                          'MMM d, HH:mm'
-                        )}
+          </>
 
-                      </span>
+        )}
 
-                    </div>
-
-                  )}
-
-
-                  {/* =========================================
-                      STALE WARNING
-                  ========================================= */}
-
-                  {hasStale && (
-
-                    <p
-                      className="
-                        text-xs
-                        text-orange-600
-                        mb-2
-                      "
-                    >
-
-                      ⚠ Some data is stale —
-                      call to confirm
-
-                    </p>
-
-                  )}
-
-
-                  {/* =========================================
-                      FOOTER
-                  ========================================= */}
-
-                  <div
-                    className="
-                      flex
-                      items-center
-                      justify-between
-                      mt-2
-                      pt-2
-                      border-t
-                      border-gray-100
-                    "
-                  >
-
-                    {hospital.emergency_contact ||
-                    hospital.phone ? (
-
-                      <a
-                        href={`tel:${
-                          hospital.emergency_contact ||
-                          hospital.phone
-                        }`}
-                        className="
-                          flex
-                          items-center
-                          gap-1
-                          text-xs
-                          text-primary-700
-                          hover:underline
-                        "
-                      >
-
-                        <FiPhone
-                          className="
-                            text-xs
-                          "
-                        />
-
-
-                        {hospital.emergency_contact ||
-                          hospital.phone}
-
-                      </a>
-
-                    ) : (
-
-                      <span />
-
-                    )}
-
-
-                    <Link
-                      to={`/hospital/${hospital.id}`}
-                      className="
-                        btn-primary
-                        btn-sm
-                        text-xs
-                      "
-                    >
-
-                      View Details
-
-                      <FiChevronRight
-                        className="
-                          text-xs
-                        "
-                      />
-
-                    </Link>
-
-                  </div>
-
-                </div>
-
-              );
-
-            }
-          )}
-
-        </div>
-
-      )}
+      </div>
 
     </div>
 
