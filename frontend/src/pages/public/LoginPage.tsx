@@ -12,7 +12,6 @@ export const LoginPage: React.FC = () => {
   const { login, isLoading, error, clearError, isAuthenticated, getDashboardPath } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
 
   useEffect(() => {
@@ -21,6 +20,8 @@ export const LoginPage: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => { clearError(); }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     clearError();
@@ -28,22 +29,7 @@ export const LoginPage: React.FC = () => {
       await login(username, password);
       toast.success(`Welcome back, ${username}!`);
       navigate(from || getDashboardPath(), { replace: true });
-    } catch {
-      // Error is set in store
-    }
-  };
-
-  const DEMO_ACCOUNTS = [
-    { label: 'System Admin', username: 'admin', password: 'Admin@123' },
-    { label: 'Hospital Admin', username: 'hospital1_admin', password: 'Admin@123' },
-    { label: 'Hospital Staff', username: 'hospital1_staff', password: 'Staff@123' },
-    { label: 'Health Worker', username: 'hw1', password: 'HealthWorker@123' },
-  ];
-
-  const fillDemo = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    clearError();
+    } catch { /* error shown from store */ }
   };
 
   return (
@@ -55,48 +41,36 @@ export const LoginPage: React.FC = () => {
             <GiHeartPlus className="text-3xl text-primary-700" />
             <span className="text-2xl font-bold text-primary-800">UpacharKhoj</span>
           </Link>
-          <p className="text-gray-600 text-sm mt-2">Healthcare Availability & Referral Platform</p>
+          <p className="text-gray-500 text-sm mt-1">Nepal Healthcare Coordination Platform</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
-          <h1 className="text-xl font-bold text-gray-900 mb-6">Sign In</h1>
-
-          {/* Demo accounts */}
-          <div className="mb-6 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-            <p className="text-xs font-semibold text-blue-700 mb-2">Demo Accounts (click to fill):</p>
-            <div className="grid grid-cols-2 gap-1.5">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.username}
-                  type="button"
-                  onClick={() => fillDemo(acc.username, acc.password)}
-                  className="text-xs px-2 py-1.5 bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50 transition-colors text-left"
-                >
-                  <div className="font-medium">{acc.label}</div>
-                  <div className="text-blue-400">{acc.username}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Sign In</h1>
+          <p className="text-sm text-gray-500 mb-6">
+            Don't have an account?{' '}
+            <Link to="/register" className="text-primary-700 font-medium hover:underline">
+              Create one free
+            </Link>
+          </p>
 
           {error && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-3 py-2.5 mb-4">
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-5">
               <FiAlertCircle className="flex-shrink-0" />
               {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} noValidate>
-            <div className="form-group">
-              <label htmlFor="username" className="label">Username</label>
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+            <div className="form-group mb-0">
+              <label htmlFor="username" className="label">Username or Email</label>
               <div className="relative">
                 <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   id="username"
                   type="text"
                   className="input pl-9"
-                  placeholder="Enter username"
+                  placeholder="Enter your username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
@@ -106,15 +80,20 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="password" className="label">Password</label>
+            <div className="form-group mb-0">
+              <div className="flex items-center justify-between mb-1">
+                <label htmlFor="password" className="label mb-0">Password</label>
+                <Link to="/forgot-password" className="text-xs text-primary-700 hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
                   className="input pl-9 pr-10"
-                  placeholder="Enter password"
+                  placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -133,24 +112,30 @@ export const LoginPage: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full btn-primary btn-lg mt-2"
+              className="w-full btn-primary btn-lg justify-center mt-2"
               disabled={isLoading || !username || !password}
             >
-              {isLoading ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Signing in…
-                </>
-              ) : 'Sign In'}
+              {isLoading
+                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Signing in…</>
+                : 'Sign In'
+              }
             </button>
           </form>
 
-          <div className="mt-4 pt-4 border-t border-gray-100 text-center">
-            <Link to="/search" className="text-sm text-gray-500 hover:text-primary-700 transition-colors">
-              Continue as public visitor → Search hospitals
-            </Link>
+          <div className="mt-6 pt-5 border-t border-gray-100 text-center">
+            <p className="text-sm text-gray-500">
+              New to UpacharKhoj?{' '}
+              <Link to="/register" className="text-primary-700 font-medium hover:underline">
+                Create a free account
+              </Link>
+            </p>
           </div>
         </div>
+
+        <p className="text-center text-xs text-gray-400 mt-4">
+          Are you hospital staff or admin?{' '}
+          <span className="text-gray-500">Use the same login — you'll be redirected to your portal.</span>
+        </p>
       </div>
     </div>
   );

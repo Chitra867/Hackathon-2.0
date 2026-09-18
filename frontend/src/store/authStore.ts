@@ -11,6 +11,14 @@ interface AuthState {
 
   // Actions
   login: (username: string, password: string) => Promise<void>;
+  register: (data: {
+    username: string;
+    email: string;
+    password: string;
+    first_name?: string;
+    last_name?: string;
+    phone?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   loadFromStorage: () => void;
   updateUser: (user: User) => void;
@@ -23,6 +31,7 @@ interface AuthState {
   isHospitalAdmin: () => boolean;
   isHospitalStaff: () => boolean;
   isHealthWorker: () => boolean;
+  isPatient: () => boolean;
   canManageAvailability: () => boolean;
   getDashboardPath: () => string;
 }
@@ -49,6 +58,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error.response?.data?.detail ||
         error.response?.data?.non_field_errors?.[0] ||
         'Login failed. Please check your credentials.';
+      set({ error: message, isLoading: false });
+      throw new Error(message);
+    }
+  },
+
+  register: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await authApi.register({ ...data } as any);
+      // Backend returns { access, refresh, user } after successful registration
+      const { access, refresh, user } = res.data as any;
+      if (access && user) {
+        localStorage.setItem('access_token', access);
+        localStorage.setItem('refresh_token', refresh);
+        localStorage.setItem('user', JSON.stringify(user));
+        set({ user, accessToken: access, refreshToken: refresh, isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
+    } catch (err: unknown) {
+      const error = err as {
+        response?: {
+          data?: {
+            detail?: string;
+            username?: string[];
+            email?: string[];
+            password?: string[];
+            non_field_errors?: string[];
+          };
+        };
+      };
+      const data = error.response?.data;
+      const message =
+        data?.username?.[0] ||
+        data?.email?.[0] ||
+        data?.password?.[0] ||
+        data?.detail ||
+        data?.non_field_errors?.[0] ||
+        'Registration failed. Please try again.';
       set({ error: message, isLoading: false });
       throw new Error(message);
     }
@@ -108,6 +156,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isHospitalStaff: () =>
     ['hospital_staff', 'hospital_admin', 'system_admin'].includes(get().user?.role ?? ''),
 
+  isPatient: () => get().user?.role === 'patient',
+
   canManageAvailability: () =>
     ['hospital_staff', 'hospital_admin', 'system_admin'].includes(get().user?.role ?? ''),
 
@@ -116,11 +166,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   getDashboardPath: () => {
     const role = get().user?.role;
     switch (role) {
-      case 'system_admin': return '/admin/dashboard';
+      case 'system_admin':   return '/admin/dashboard';
       case 'hospital_admin': return '/hadmin/dashboard';
-      case 'hospital_staff': return '/staff/dashboard';
-      case 'health_worker': return '/hw/dashboard';
-      default: return '/search';
+      case 'hospital_staff': return '/hadmin/dashboard';
+      case 'patient':        return '/search';
+      case 'health_worker':  return '/search';
+      default:               return '/search';
     }
   },
 }));

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import {
-  FiHome, FiSearch, FiList, FiPlusCircle, FiActivity,
-  FiUsers, FiSettings, FiFileText, FiChevronLeft, FiChevronRight
+  FiHome, FiList, FiActivity,
+  FiUsers, FiSettings, FiFileText, FiChevronLeft, FiChevronRight,
+  FiBarChart2, FiMapPin, FiClock, FiShield,
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore';
 
@@ -15,36 +16,46 @@ interface NavItem {
 
 const getNavItems = (role: string): NavItem[] => {
   switch (role) {
-    case 'health_worker':
-      return [
-        { to: '/hw/dashboard',       label: 'Dashboard',       icon: <FiHome /> },
-        { to: '/search',             label: 'Find Hospital',   icon: <FiSearch /> },
-        { to: '/hw/referrals/new',   label: 'New Referral',    icon: <FiPlusCircle /> },
-        { to: '/hw/referrals',       label: 'My Referrals',    icon: <FiList /> },
-      ];
-    case 'hospital_staff':
-      return [
-        { to: '/staff/dashboard',    label: 'Dashboard',       icon: <FiHome /> },
-        { to: '/staff/availability', label: 'Availability',    icon: <FiActivity /> },
-        { to: '/staff/referrals',    label: 'Incoming Refs',   icon: <FiList /> },
-      ];
-    case 'hospital_admin':
-      return [
-        { to: '/hadmin/dashboard',   label: 'Dashboard',       icon: <FiHome /> },
-        { to: '/hadmin/staff',       label: 'Manage Staff',    icon: <FiUsers /> },
-        { to: '/staff/availability', label: 'Availability',    icon: <FiActivity /> },
-        { to: '/staff/referrals',    label: 'Referrals',       icon: <FiList /> },
-      ];
     case 'system_admin':
       return [
-        { to: '/admin/dashboard',    label: 'Dashboard',       icon: <FiHome /> },
-        { to: '/admin/hospitals',    label: 'Hospitals',       icon: <FiSettings /> },
-        { to: '/admin/services',     label: 'Services',        icon: <FiList /> },
-        { to: '/admin/users',        label: 'Users',           icon: <FiUsers /> },
-        { to: '/admin/audit',        label: 'Audit Log',       icon: <FiFileText /> },
+        { to: '/admin/dashboard',       label: 'Dashboard',        icon: <FiBarChart2 /> },
+        { to: '/admin/hospitals',        label: 'Hospitals',        icon: <FiMapPin /> },
+        { to: '/admin/hospital-admins',  label: 'Hospital Admins',  icon: <FiUsers /> },
+        { to: '/admin/services',         label: 'Services',         icon: <FiSettings /> },
+        { to: '/admin/reports',          label: 'Reports',          icon: <FiFileText /> },
+      ];
+    case 'hospital_admin':
+    case 'hospital_staff':
+      return [
+        { to: '/hadmin/dashboard',        label: 'Dashboard',           icon: <FiHome /> },
+        { to: '/hadmin/availability',     label: 'Availability',        icon: <FiActivity /> },
+        { to: '/hadmin/specialists',      label: 'Specialists & Equip', icon: <FiUsers /> },
+        { to: '/hadmin/referrals',        label: 'Referrals',           icon: <FiList /> },
+        { to: '/hadmin/referral-history', label: 'Referral History',    icon: <FiClock /> },
+        { to: '/hadmin/profile',          label: 'Hospital Profile',    icon: <FiSettings /> },
       ];
     default:
       return [];
+  }
+};
+
+const portalLabel = (role: string) => {
+  switch (role) {
+    case 'system_admin':   return 'Super Admin';
+    case 'hospital_admin': return 'Hospital Admin';
+    case 'hospital_staff': return 'Hospital Staff';
+    case 'health_worker':  return 'Health Worker';
+    default: return 'Portal';
+  }
+};
+
+const portalAccent = (role: string) => {
+  switch (role) {
+    case 'system_admin':   return 'bg-rose-600';
+    case 'hospital_admin': return 'bg-blue-600';
+    case 'hospital_staff': return 'bg-blue-500';
+    case 'health_worker':  return 'bg-primary-700';
+    default: return 'bg-gray-600';
   }
 };
 
@@ -54,27 +65,36 @@ export const DashboardLayout: React.FC = () => {
   const location = useLocation();
   const navItems = getNavItems(user?.role ?? '');
 
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/');
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar />
       <div className="flex flex-1 max-w-screen-2xl mx-auto w-full">
         {/* Sidebar */}
         <aside
-          className={`hidden md:flex flex-col bg-white border-r border-gray-100 transition-all duration-200 ${
-            collapsed ? 'w-16' : 'w-56'
+          className={`hidden md:flex flex-col bg-white border-r border-gray-100 transition-all duration-200 flex-shrink-0 ${
+            collapsed ? 'w-16' : 'w-58'
           }`}
         >
-          <div className="flex-1 py-4 overflow-y-auto">
-            {!collapsed && (
-              <div className="px-4 mb-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                  {user?.role_display ?? 'Navigation'}
-                </p>
-              </div>
-            )}
+          {/* Portal badge */}
+          {!collapsed && (
+            <div className={`${portalAccent(user?.role ?? '')} px-4 py-2.5`}>
+              <p className="text-white text-xs font-semibold tracking-wide uppercase">{portalLabel(user?.role ?? '')}</p>
+              <p className="text-white/70 text-xs truncate">{user?.full_name || user?.username}</p>
+            </div>
+          )}
+          {collapsed && (
+            <div className={`${portalAccent(user?.role ?? '')} flex items-center justify-center py-2`}>
+              <FiShield className="text-white text-sm" />
+            </div>
+          )}
+
+          <div className="flex-1 py-3 overflow-y-auto">
             <nav className="space-y-0.5 px-2">
               {navItems.map((item) => {
-                const active = location.pathname === item.to || location.pathname.startsWith(item.to + '/');
+                const active = isActive(item.to);
                 return (
                   <Link
                     key={item.to}
@@ -82,17 +102,25 @@ export const DashboardLayout: React.FC = () => {
                     title={collapsed ? item.label : undefined}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-primary-50 text-primary-700'
+                        ? 'bg-primary-50 text-primary-700 border border-primary-100'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     }`}
                   >
                     <span className="text-base flex-shrink-0">{item.icon}</span>
-                    {!collapsed && <span>{item.label}</span>}
+                    {!collapsed && <span className="truncate">{item.label}</span>}
                   </Link>
                 );
               })}
             </nav>
           </div>
+
+          {/* Hospital name */}
+          {!collapsed && user?.hospital_name && (
+            <div className="px-4 py-2 border-t border-gray-100">
+              <p className="text-xs text-gray-400 truncate">{user.hospital_name}</p>
+            </div>
+          )}
+
           {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed(!collapsed)}

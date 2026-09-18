@@ -43,3 +43,7 @@ dist-ssr/
 
 # OS
 Thumbs.db
+
+.venv/
+
+db-backup-*.sqlite3
