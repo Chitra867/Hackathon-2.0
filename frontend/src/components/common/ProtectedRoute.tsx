@@ -21,7 +21,7 @@ export const ProtectedRoute: React.FC<Props> = ({ children, allowedRoles }) => {
     const roleRedirects: Record<string, string> = {
       system_admin: '/admin/dashboard',
       hospital_admin: '/hadmin/dashboard',
-      hospital_staff: '/staff/dashboard',
+      hospital_staff: '/hadmin/dashboard',
       health_worker: '/hw/dashboard',
       patient: '/search',
     };

@@ -195,7 +195,7 @@ export const referralsApi = {
     api.patch<Referral>(`/referrals/${id}/respond/`, data),
 
   updateStatus: (id: number, data: { status: string }) =>
-    api.patch<Referral>(`/referrals/${id}/update_status/`, data),
+    api.patch<Referral>(`/referrals/${id}/update-status/`, data),
 };
 
 // ─── Audit Log Endpoints ──────────────────────────────────────────────────────
