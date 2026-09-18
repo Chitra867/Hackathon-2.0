@@ -1,11 +1,5 @@
 import React, { useEffect } from 'react';
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-  Navigate,
-} from 'react-router-dom';
-
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 
 import { useAuthStore } from './store/authStore';
@@ -14,29 +8,28 @@ import { Layout } from './components/layout/Layout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
-
-// ─────────────────────────────────────────────
-// Public pages
-// ─────────────────────────────────────────────
+/* =========================================================
+   PUBLIC PAGES
+========================================================= */
 
 import { SearchPage } from './pages/public/SearchPage';
 import { HospitalDetailPage } from './pages/public/HospitalDetailPage';
 import { LoginPage } from './pages/public/LoginPage';
+import { RegisterPage } from './pages/public/RegisterPage';
+import { AboutPage } from './pages/public/AboutPage';
 
-
-// ─────────────────────────────────────────────
-// Health Worker pages
-// ─────────────────────────────────────────────
+/* =========================================================
+   HEALTH WORKER
+========================================================= */
 
 import { HWDashboard } from './pages/healthworker/HWDashboard';
 import { HWReferrals } from './pages/healthworker/HWReferrals';
 import { HWNewReferral } from './pages/healthworker/HWNewReferral';
 import { HWReferralDetail } from './pages/healthworker/HWReferralDetail';
 
-
-// ─────────────────────────────────────────────
-// Hospital Admin pages
-// ─────────────────────────────────────────────
+/* =========================================================
+   HOSPITAL ADMIN
+========================================================= */
 
 import { HADashboard } from './pages/hospitaladmin/HADashboard';
 import { AvailabilityManagement } from './pages/hospitaladmin/AvailabilityManagement';
@@ -46,10 +39,9 @@ import { HARefDetail } from './pages/hospitaladmin/HARefDetail';
 import { ReferralHistory } from './pages/hospitaladmin/ReferralHistory';
 import { HospitalProfile } from './pages/hospitaladmin/HospitalProfile';
 
-
-// ─────────────────────────────────────────────
-// Super Admin pages
-// ─────────────────────────────────────────────
+/* =========================================================
+   SUPER ADMIN
+========================================================= */
 
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { HospitalManagement } from './pages/admin/HospitalManagement';
@@ -60,103 +52,59 @@ import { Reports } from './pages/admin/Reports';
 
 
 function App() {
-
   const { loadFromStorage } = useAuthStore();
 
-
   useEffect(() => {
-
     loadFromStorage();
-
   }, [loadFromStorage]);
 
-
   return (
-
     <BrowserRouter>
-
-      {/* Toast notifications */}
-
       <Toaster
         position="top-right"
         toastOptions={{
-          duration: 4000,
-
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-
-          success: {
-            iconTheme: {
-              primary: '#10B981',
-              secondary: '#fff',
-            },
-          },
-
-          error: {
-            iconTheme: {
-              primary: '#EF4444',
-              secondary: '#fff',
-            },
-          },
+          duration: 3000,
         }}
       />
 
-
       <Routes>
-
 
         {/* =====================================================
             PUBLIC ROUTES
         ===================================================== */}
 
         <Route element={<Layout />}>
-
-
-          {/* HOME PAGE = SEARCH PAGE */}
-
-          <Route
-            path="/"
-            element={<SearchPage />}
-          />
-
-
-          {/* Old /search URL redirects to home */}
+          <Route path="/" element={<SearchPage />} />
 
           <Route
             path="/search"
-            element={
-              <Navigate
-                to="/"
-                replace
-              />
-            }
+            element={<SearchPage />}
           />
 
-
-          {/* Hospital Details */}
+          <Route
+            path="/about"
+            element={<AboutPage />}
+          />
 
           <Route
             path="/hospital/:id"
             element={<HospitalDetailPage />}
           />
 
-
-          {/* Login */}
-
           <Route
             path="/login"
             element={<LoginPage />}
           />
 
-
+          <Route
+            path="/register"
+            element={<RegisterPage />}
+          />
         </Route>
 
 
-
         {/* =====================================================
-            HEALTH WORKER PORTAL
+            HEALTH WORKER ROUTES
         ===================================================== */}
 
         <Route
@@ -168,7 +116,6 @@ function App() {
             </ProtectedRoute>
           }
         >
-
           <Route
             path="/hw/dashboard"
             element={<HWDashboard />}
@@ -188,13 +135,11 @@ function App() {
             path="/hw/referrals/:id"
             element={<HWReferralDetail />}
           />
-
         </Route>
 
 
-
         {/* =====================================================
-            HOSPITAL ADMIN PORTAL
+            HOSPITAL ADMIN ROUTES
         ===================================================== */}
 
         <Route
@@ -209,7 +154,6 @@ function App() {
             </ProtectedRoute>
           }
         >
-
           <Route
             path="/hadmin/dashboard"
             element={<HADashboard />}
@@ -244,13 +188,11 @@ function App() {
             path="/hadmin/profile"
             element={<HospitalProfile />}
           />
-
         </Route>
 
 
-
         {/* =====================================================
-            SUPER ADMIN PORTAL
+            SUPER ADMIN ROUTES
         ===================================================== */}
 
         <Route
@@ -262,7 +204,6 @@ function App() {
             </ProtectedRoute>
           }
         >
-
           <Route
             path="/admin/dashboard"
             element={<AdminDashboard />}
@@ -302,9 +243,7 @@ function App() {
             path="/admin/audit"
             element={<Reports />}
           />
-
         </Route>
-
 
 
         {/* =====================================================
@@ -312,47 +251,34 @@ function App() {
         ===================================================== */}
 
         <Route element={<Layout />}>
-
           <Route
             path="*"
             element={
-
-              <div className="min-h-[60vh] flex items-center justify-center">
-
+              <div className="flex min-h-[60vh] items-center justify-center">
                 <div className="text-center">
-
-                  <h1 className="text-6xl font-bold text-gray-300 mb-4">
+                  <h1 className="text-5xl font-bold text-[#172554]">
                     404
                   </h1>
 
-                  <p className="text-gray-600 mb-6">
+                  <p className="mt-3 text-gray-500">
                     Page not found
                   </p>
 
                   <a
                     href="/"
-                    className="btn-primary"
+                    className="mt-5 inline-block rounded-lg bg-primary-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-800"
                   >
                     Go Home
                   </a>
-
                 </div>
-
               </div>
-
             }
           />
-
         </Route>
 
-
       </Routes>
-
     </BrowserRouter>
-
   );
-
 }
-
 
 export default App;
