@@ -1,22 +1,19 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuthStore } from './store/authStore';
 import { Layout } from './components/layout/Layout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
-// ── Public pages ──────────────────────────────────────────────────────────────
+// ── Public pages (patients browse without login) ───────────────────────────────
 import { HomePage } from './pages/public/HomePage';
 import { SearchPage } from './pages/public/SearchPage';
 import { HospitalDetailPage } from './pages/public/HospitalDetailPage';
 import { LoginPage } from './pages/public/LoginPage';
-
-// ── Health Worker pages ───────────────────────────────────────────────────────
-import { HWDashboard } from './pages/healthworker/HWDashboard';
-import { HWReferrals } from './pages/healthworker/HWReferrals';
-import { HWNewReferral } from './pages/healthworker/HWNewReferral';
-import { HWReferralDetail } from './pages/healthworker/HWReferralDetail';
+import { RegisterPage } from './pages/public/RegisterPage';
+import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/public/ResetPasswordPage';
 
 // ── Hospital Admin pages ──────────────────────────────────────────────────────
 import { HADashboard } from './pages/hospitaladmin/HADashboard';
@@ -55,29 +52,18 @@ function App() {
       />
 
       <Routes>
-        {/* ── Public routes ── */}
+        {/* ── Public routes — patients search without login ── */}
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/hospital/:id" element={<HospitalDetailPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
         </Route>
 
-        {/* ── Health Worker portal ── */}
-        <Route
-          element={
-            <ProtectedRoute allowedRoles={['health_worker']}>
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route path="/hw/dashboard" element={<HWDashboard />} />
-          <Route path="/hw/referrals" element={<HWReferrals />} />
-          <Route path="/hw/referrals/new" element={<HWNewReferral />} />
-          <Route path="/hw/referrals/:id" element={<HWReferralDetail />} />
-        </Route>
-
-        {/* ── Hospital Admin portal (admin + staff share the same layout) ── */}
+        {/* ── Hospital Admin portal ── */}
         <Route
           element={
             <ProtectedRoute allowedRoles={['hospital_admin', 'hospital_staff']}>
@@ -102,14 +88,14 @@ function App() {
             </ProtectedRoute>
           }
         >
-          <Route path="/admin/dashboard"       element={<AdminDashboard />} />
-          <Route path="/admin/hospitals"       element={<HospitalManagement />} />
-          <Route path="/admin/hospitals/new"   element={<AddEditHospital />} />
+          <Route path="/admin/dashboard"          element={<AdminDashboard />} />
+          <Route path="/admin/hospitals"          element={<HospitalManagement />} />
+          <Route path="/admin/hospitals/new"      element={<AddEditHospital />} />
           <Route path="/admin/hospitals/:id/edit" element={<AddEditHospital />} />
-          <Route path="/admin/hospital-admins" element={<HospitalAdminManagement />} />
-          <Route path="/admin/services"        element={<ServiceManagement />} />
-          <Route path="/admin/reports"         element={<Reports />} />
-          <Route path="/admin/audit"           element={<Reports />} />
+          <Route path="/admin/hospital-admins"    element={<HospitalAdminManagement />} />
+          <Route path="/admin/services"           element={<ServiceManagement />} />
+          <Route path="/admin/reports"            element={<Reports />} />
+          <Route path="/admin/audit"              element={<Reports />} />
         </Route>
 
         {/* ── 404 ── */}

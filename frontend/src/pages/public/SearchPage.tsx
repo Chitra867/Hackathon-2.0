@@ -366,7 +366,7 @@ export const SearchPage: React.FC = () => {
                         </span>
                         <div className="flex items-center gap-1.5">
                           <StatusBadge status={a.status} size="sm" />
-                          <FreshnessTag label={a.freshness_label} size="sm" />
+                          <FreshnessTag label={a.freshness_label} />
                         </div>
                       </div>
                     ))}

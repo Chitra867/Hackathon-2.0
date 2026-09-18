@@ -1,11 +1,10 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { useNotificationStore } from '../store/notificationStore';
+import { useNotificationStore, type AppNotification } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
-import type { Notification } from '../types';
 
 interface UseWebSocketOptions {
   hospitalId?: number;
-  onMessage?: (notification: Notification) => void;
+  onMessage?: (notification: AppNotification) => void;
   autoConnect?: boolean;
 }
 
@@ -18,7 +17,7 @@ interface UseWebSocketReturn {
 export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketReturn {
   const { hospitalId, onMessage, autoConnect = true } = options;
   const { isAuthenticated } = useAuthStore();
-  const { connect, disconnect, isConnected, addNotification } = useNotificationStore();
+  const { connect, disconnect, wsConnected, addNotification } = useNotificationStore();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
@@ -31,7 +30,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
     const wsProtocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
     const wsHost = window.location.hostname;
-    const wsPort = import.meta.env.DEV ? ':8000' : '';
+    const isDev = window.location.port === '3000';
+    const wsPort = isDev ? ':8000' : '';
     const wsPath = hospitalId ? `/ws/hospital/${hospitalId}/` : '/ws/notifications/';
     const wsUrl = `${wsProtocol}://${wsHost}${wsPort}${wsPath}?token=${token}`;
 
@@ -40,9 +40,17 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
     ws.onmessage = (event: MessageEvent) => {
       try {
-        const notification = JSON.parse(event.data as string) as Notification;
+        const data = JSON.parse(event.data as string);
+        const notification: Omit<AppNotification, 'id' | 'timestamp' | 'read'> = {
+          type: data.type === 'availability_update' ? 'availability' : 'info',
+          title: data.title || 'Update',
+          message: data.message || JSON.stringify(data),
+          data,
+        };
         addNotification(notification);
-        onMessage?.(notification);
+        if (onMessage) {
+          onMessage({ ...notification, id: '', timestamp: '', read: false });
+        }
       } catch {
         // Ignore malformed messages
       }
@@ -50,23 +58,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
     ws.onclose = () => {
       if (!mountedRef.current) return;
-      // Schedule reconnect
       reconnectTimeoutRef.current = setTimeout(() => {
-        if (mountedRef.current) {
-          createConnection();
-        }
+        if (mountedRef.current) createConnection();
       }, 5000);
     };
 
-    ws.onerror = () => {
-      ws.close();
-    };
+    ws.onerror = () => { ws.close(); };
   }, [hospitalId, onMessage, isAuthenticated, addNotification]);
 
   const reconnect = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-    }
+    if (wsRef.current) wsRef.current.close();
     createConnection();
   }, [createConnection]);
 
@@ -78,19 +79,13 @@ export function useWebSocket(options: UseWebSocketOptions = {}): UseWebSocketRet
 
   useEffect(() => {
     mountedRef.current = true;
-
-    if (autoConnect && isAuthenticated()) {
-      connect(hospitalId);
-    }
-
+    if (autoConnect && isAuthenticated()) connect(hospitalId);
     return () => {
       mountedRef.current = false;
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current);
-      }
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       disconnect();
     };
   }, [autoConnect, hospitalId, isAuthenticated, connect, disconnect]);
 
-  return { isConnected, send, reconnect };
+  return { isConnected: wsConnected, send, reconnect };
 }
