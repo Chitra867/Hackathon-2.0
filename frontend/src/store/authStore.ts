@@ -116,10 +116,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   getDashboardPath: () => {
     const role = get().user?.role;
     switch (role) {
-      case 'system_admin': return '/admin/dashboard';
+      case 'system_admin':   return '/admin/dashboard';
       case 'hospital_admin': return '/hadmin/dashboard';
-      case 'hospital_staff': return '/staff/dashboard';
-      case 'health_worker': return '/hw/dashboard';
+      case 'hospital_staff': return '/hadmin/dashboard';
+      case 'health_worker':  return '/hw/dashboard';
       default: return '/search';
     }
   },
