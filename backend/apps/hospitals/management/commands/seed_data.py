@@ -342,74 +342,93 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------ #
 
     def _create_availability(self, hospitals, services, updated_by):
-        from apps.hospitals.models import Availability
+        from apps.hospitals.models import Availability, HospitalService
 
-        services_by_name = {s.name: s for s in services}
+        services_by_name = {service.name: service for service in services}
 
-        availability_templates = [
+        templates = [
             {
                 'availability_type': 'bed',
-                'status': 'available',
+                'service_name': None,
                 'available_count': 15,
                 'total_count': 50,
-                'notes': 'General ward beds available.',
             },
             {
                 'availability_type': 'icu',
-                'status': 'limited',
+                'service_name': 'Intensive Care Unit (ICU)',
                 'available_count': 2,
                 'total_count': 8,
-                'service_name': 'Intensive Care Unit (ICU)',
-                'notes': 'ICU beds limited — critical cases only.',
             },
             {
                 'availability_type': 'nicu',
-                'status': 'available',
+                'service_name': 'Neonatal ICU (NICU)',
                 'available_count': 3,
                 'total_count': 6,
-                'service_name': 'Neonatal ICU (NICU)',
-                'notes': 'NICU beds available.',
             },
             {
                 'availability_type': 'emergency',
-                'status': 'available',
+                'service_name': 'Emergency Department',
                 'available_count': None,
                 'total_count': None,
-                'service_name': 'Emergency Department',
-                'notes': 'Emergency department operational 24/7.',
             },
             {
                 'availability_type': 'blood',
-                'status': 'available',
+                'service_name': 'Blood Bank',
                 'available_count': None,
                 'total_count': None,
-                'service_name': 'Blood Bank',
-                'notes': 'A+, B+, O+ in stock.',
             },
             {
                 'availability_type': 'test',
-                'status': 'available',
+                'service_name': 'CT Scan',
                 'available_count': None,
                 'total_count': None,
-                'service_name': 'CT Scan',
-                'notes': 'CT Scan operational.',
             },
         ]
 
-        count = 0
-        status_cycle = ['available', 'limited', 'available', 'full', 'available']
+        created_count = 0
+        status_cycle = ('available', 'limited', 'full')
 
-        for idx, hospital in enumerate(hospitals):
-            for template in availability_templates:
+        for hospital_index, hospital in enumerate(hospitals):
+            if not hospital.is_active:
+                continue
+
+            enabled_service_ids = set(
+                HospitalService.objects.filter(
+                    hospital=hospital,
+                    is_available=True,
+                    service__is_active=True,
+                ).values_list('service_id', flat=True)
+            )
+
+            for template_index, template in enumerate(templates):
                 service = None
-                service_name = template.get('service_name')
+                service_name = template['service_name']
+
                 if service_name:
                     service = services_by_name.get(service_name)
+                    if service is None or service.pk not in enabled_service_ids:
+                        continue
 
-                # Vary the status for realism
-                current_status = status_cycle[idx % len(status_cycle)]
-                if template['availability_type'] in ('icu', 'nicu'):
-                    current_status = random.choice(['available', 'limited', 'full'])
+                available_count = template['available_count']
+                total_count = template['total_count']
+
+                if total_count is None:
+                    current_status = 'available'
+                    notes = 'Demo data: service marked available.'
+                else:
+                    current_status = status_cycle[
+                        (hospital_index + template_index) % len(status_cycle)
+                    ]
+
+                    if current_status == 'full':
+                        available_count = 0
+                    elif current_status == 'limited':
+                        available_count = max(1, total_count // 4)
+
+                    notes = (
+                        f'Demo data: {available_count} of {total_count} '
+                        f'places available; status: {current_status}.'
+                    )
 
                 _, created = Availability.objects.get_or_create(
                     hospital=hospital,
@@ -417,19 +436,22 @@ class Command(BaseCommand):
                     service=service,
                     defaults={
                         'status': current_status,
-                        'available_count': template.get('available_count'),
-                        'total_count': template.get('total_count'),
-                        'notes': template.get('notes', ''),
+                        'available_count': available_count,
+                        'total_count': total_count,
+                        'notes': notes,
                         'updated_by': updated_by,
                         'source': 'manual',
                         'is_active': True,
-                    }
+                    },
                 )
+
                 if created:
-                    count += 1
+                    created_count += 1
 
-        self.stdout.write(f'  Created {count} availability records')
-
+        self.stdout.write(
+            f'  Created {created_count} availability records. '
+            'Existing records were left unchanged.'
+        )
     # ------------------------------------------------------------------ #
     # Sample referrals
     # ------------------------------------------------------------------ #
