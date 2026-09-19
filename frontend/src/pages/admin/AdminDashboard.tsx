@@ -1,5 +1,4 @@
 import React, {
-  useCallback,
   useEffect,
   useState,
 } from 'react';
@@ -10,8 +9,6 @@ import {
   FiHome, FiUsers, FiFileText, FiSettings, FiCheckCircle, FiAlertCircle,
   FiLogIn, FiLogOut, FiActivity, FiArrowRight,
 } from 'react-icons/fi';
-
-import toast from 'react-hot-toast';
 
 import {
   format,
@@ -39,13 +36,6 @@ interface DashboardStats {
   totalUsers: number | null;
 }
 
-interface DashboardErrors {
-  hospitals: boolean;
-  activeHospitals: boolean;
-  pendingHospitals: boolean;
-  users: boolean;
-  activity: boolean;
-}
 
 // --------------------------------------------------
 // CONSTANTS
@@ -58,15 +48,7 @@ const INITIAL_STATS: DashboardStats = {
   totalUsers: null,
 };
 
-const INITIAL_ERRORS: DashboardErrors = {
-  hospitals: false,
-  activeHospitals: false,
-  pendingHospitals: false,
-  users: false,
-  activity: false,
-};
 
-const ACTIVITY_PAGE_SIZE = 8;
 
 // --------------------------------------------------
 // HELPER FUNCTIONS
@@ -81,76 +63,6 @@ const safeText = (value: unknown): string => {
   }
 
   return '';
-};
-
-// --------------------------------------------------
-// EXTRACT API COUNT
-// --------------------------------------------------
-
-const extractCount = (
-  data: unknown,
-): number => {
-  // Handle an API returning a complete array.
-
-  if (Array.isArray(data)) {
-    return data.length;
-  }
-
-  // Handle a standard Django REST Framework
-  // paginated response.
-
-  if (
-    data !== null &&
-    typeof data === 'object' &&
-    'results' in data
-  ) {
-    const response = data as {
-      count?: unknown;
-      results?: unknown;
-    };
-
-    if (
-      typeof response.count === 'number' &&
-      Number.isSafeInteger(response.count) &&
-      response.count >= 0
-    ) {
-      return response.count;
-    }
-  }
-
-  throw new Error(
-    'The API did not return a valid total count.',
-  );
-};
-
-// --------------------------------------------------
-// EXTRACT API RESULTS
-// --------------------------------------------------
-
-const extractResults = <T,>(
-  data: unknown,
-): T[] => {
-  if (Array.isArray(data)) {
-    return data as T[];
-  }
-
-  if (
-    data !== null &&
-    typeof data === 'object' &&
-    'results' in data
-  ) {
-    const response = data as {
-      results?: unknown;
-    };
-
-    if (Array.isArray(response.results)) {
-      return response.results as T[];
-    }
-  }
-
-  throw new Error(
-    'Invalid API response: expected a results array.',
-  );
 };
 
 // --------------------------------------------------
@@ -176,34 +88,11 @@ const formatActivityDate = (
   try {
     return format(
       date,
-      'MMM d, yyyy HH:mm',
+      'MMM d, HH:mm',
     );
   } catch {
     return 'Date unavailable';
   }
-};
-
-// --------------------------------------------------
-// ACTIVITY DATE FOR SORTING
-// --------------------------------------------------
-
-const getActivityTimestamp = (
-  value: unknown,
-): number => {
-  if (
-    typeof value !== 'string' &&
-    typeof value !== 'number'
-  ) {
-    return 0;
-  }
-
-  const timestamp = new Date(
-    value,
-  ).getTime();
-
-  return Number.isFinite(timestamp)
-    ? timestamp
-    : 0;
 };
 
 // --------------------------------------------------
@@ -286,31 +175,6 @@ export const AdminDashboard: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
 
-  const [
-    refreshing,
-    setRefreshing,
-  ] = useState(false);
-
-  const [
-    refreshKey,
-    setRefreshKey,
-  ] = useState(0);
-
-  const [errors, setErrors] = useState<DashboardErrors>(
-    INITIAL_ERRORS,
-  );
-
-  // ------------------------------------------------
-  // REFRESH DASHBOARD
-  // ------------------------------------------------
-
-  const refreshDashboard = useCallback(() => {
-    setRefreshKey(
-      (previous) => previous + 1,
-    );
-  }, []);
-
-  // ------------------------------------------------
   // LOAD DASHBOARD DATA
   // ------------------------------------------------
 
@@ -328,7 +192,9 @@ export const AdminDashboard: React.FC = () => {
         pendingHospitals: hospitals.filter((h) => h.verification_status === 'pending').length,
       });
       setRecentActivity(auditRes.data.results);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((error) => {
+      console.error('Failed to load dashboard data:', error);
+    }).finally(() => setLoading(false));
   }, []);
 
   // One teal family, not four unrelated hues — active/good state gets the
@@ -374,16 +240,7 @@ export const AdminDashboard: React.FC = () => {
     },
   ];
 
-  const activityStyle = (log: AuditLog) => {
-    const action = (log.action_display || '').toLowerCase();
-    if (action.includes('login')) {
-      return { icon: <FiLogIn />, bg: 'bg-[#eef3f2]', color: 'text-[#216d73]' };
-    }
-    if (action.includes('logout')) {
-      return { icon: <FiLogOut />, bg: 'bg-[#f2ece0]', color: 'text-[#8a8078]' };
-    }
-    return { icon: <FiActivity />, bg: 'bg-[#e4ebe9]', color: 'text-[#538b8c]' };
-  };
+
 
   if (loading) return <LoadingSpinner text="Loading dashboard…" />;
 
@@ -467,13 +324,13 @@ export const AdminDashboard: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[#1c3d3f] truncate">{log.description}</p>
+                      <p className="text-sm text-[#1c3d3f] truncate">{description}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className="text-xs text-[#a3988a]">
-                          {format(new Date(log.created_at), 'MMM d, HH:mm')}
+                          {formatActivityDate(log.created_at)}
                         </span>
                         <span className="text-[#d8cdb8]">·</span>
-                        <span className={`text-xs font-medium ${style.color}`}>{log.action_display}</span>
+                        <span className={`text-xs font-medium ${style.color}`}>{actionLabel}</span>
                       </div>
 
                     </div>
@@ -497,16 +354,16 @@ export const AdminDashboard: React.FC = () => {
             {quickLinks.map((link) => (
 
               <Link
-                key={l.to}
-                to={l.to}
+                key={link.to}
+                to={link.to}
                 className="flex items-center gap-3 p-3 rounded-lg border border-[#e5dcc8] hover:bg-[#faedd7]/60 hover:border-[#aabfb9] transition-colors"
               >
                 <div className="w-9 h-9 bg-[#eef3f2] text-[#216d73] rounded-lg flex items-center justify-center flex-shrink-0">
-                  {l.icon}
+                  {link.icon}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-[#1c3d3f]">{l.label}</div>
-                  <div className="text-xs text-[#8a8078]">{l.desc}</div>
+                  <div className="text-sm font-semibold text-[#1c3d3f]">{link.label}</div>
+                  <div className="text-xs text-[#8a8078]">{link.desc}</div>
                 </div>
 
               </Link>
