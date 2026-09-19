@@ -13,11 +13,11 @@ import {
 
 export const AboutPage: React.FC = () => {
     return (
-        <div className="min-h-screen bg-[#f8f4eb]">
-            <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+        <div className="bg-[#f8f4eb]">
+            <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
 
                 {/* HERO */}
-                <section className="relative overflow-hidden rounded-[30px] border border-[#dfd1b5] bg-gradient-to-br from-[#f9ead1] via-[#f5efe4] to-[#c8dcda] px-7 py-12 shadow-[0_18px_45px_rgba(78,58,26,0.10)] md:px-12 md:py-14">
+                <section className="relative overflow-hidden rounded-[24px] border border-[#dfd1b5] bg-gradient-to-br from-[#f9ead1] via-[#f5efe4] to-[#c8dcda] px-5 py-8 shadow-[0_12px_35px_rgba(78,58,26,0.08)] md:rounded-[30px] md:px-12 md:py-14">
                     <div className="absolute -right-20 -top-20 h-72 w-72 rounded-full bg-[#0b6670]/10 blur-2xl" />
                     <div className="absolute -bottom-24 right-32 h-64 w-64 rounded-full bg-[#d6a94f]/10 blur-2xl" />
 
@@ -62,7 +62,7 @@ export const AboutPage: React.FC = () => {
                 </section>
 
                 {/* PURPOSE */}
-                <section className="py-14">
+                <section className="py-8 md:py-12">
                     <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
                         <div>
                             <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18432]">
@@ -147,7 +147,7 @@ export const AboutPage: React.FC = () => {
                 </section>
 
                 {/* WHO IT HELPS */}
-                <section className="rounded-[28px] border border-[#ded4c0] bg-[#f2eadc] px-6 py-10 md:px-10">
+                <section className="rounded-[24px] border border-[#ded4c0] bg-[#f2eadc] px-5 py-8 md:rounded-[28px] md:px-10">
                     <div className="text-center">
                         <span className="text-xs font-bold uppercase tracking-[0.18em] text-[#b18432]">
                             Built For Healthcare Coordination
@@ -214,7 +214,7 @@ export const AboutPage: React.FC = () => {
                 </section>
 
                 {/* TRUST */}
-                <section className="py-14">
+                <section className="py-8 md:py-12">
                     <div className="grid gap-8 lg:grid-cols-2 lg:items-center">
 
                         <div className="rounded-[26px] border border-[#dce9e6] bg-[#edf6f3] p-7">
@@ -278,7 +278,7 @@ export const AboutPage: React.FC = () => {
                 </section>
 
                 {/* CTA */}
-                <section className="overflow-hidden rounded-[28px] bg-[#07545e] px-6 py-10 text-center shadow-[0_14px_35px_rgba(7,84,94,0.18)] md:px-12">
+                <section className="overflow-hidden rounded-[24px] bg-[#07545e] px-5 py-8 text-center shadow-[0_10px_28px_rgba(7,84,94,0.16)] md:rounded-[28px] md:px-12 md:py-10">
                     <h2 className="text-2xl font-bold text-white md:text-3xl">
                         Ready to find the right hospital?
                     </h2>

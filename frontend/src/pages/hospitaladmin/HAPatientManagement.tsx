@@ -109,9 +109,9 @@ export const HAPatientManagement: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-[#3d2f1c]">Patient Management</h1>
+          <h1 className="text-2xl font-bold text-[#3d2f1c]">History of Referrals</h1>
           <p className="text-sm text-[#8a7a63] mt-0.5">
-            All patients who have submitted requests to {user?.hospital_name || 'your hospital'}
+            All patient referral requests directed to {user?.hospital_name || 'your hospital'}
           </p>
         </div>
         <div className="flex items-center gap-2">

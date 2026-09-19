@@ -9,6 +9,7 @@ import {
   FiToggleLeft,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+
 import { hospitalsApi } from '../../lib/api';
 import type { HospitalListItem } from '../../types';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
@@ -19,20 +20,31 @@ export const HospitalManagement: React.FC = () => {
   const [search, setSearch] = useState('');
   const [toggling, setToggling] = useState<number | null>(null);
 
+  // Fetch hospitals from the API
   const load = () => {
     setLoading(true);
-    hospitalsApi.list({ page_size: 100 })
-      .then((r) => setHospitals(r.data.results))
-      .catch(() => toast.error('Failed to load hospitals'))
-      .finally(() => setLoading(false));
+
+    hospitalsApi
+      .list({ page_size: 100 })
+      .then((response) => {
+        setHospitals(response.data.results);
+      })
+      .catch(() => {
+        toast.error('Failed to load hospitals');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
     load();
   }, []);
 
+  // Activate or deactivate a hospital
   const handleToggle = async (hospital: HospitalListItem) => {
     setToggling(hospital.id);
+
     try {
       await hospitalsApi.update(hospital.id, {
         is_active: !hospital.is_active,
@@ -68,7 +80,9 @@ export const HospitalManagement: React.FC = () => {
 
   return (
     <div className="bg-[#faedd7] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
+      {/* Header */}
       <div className="flex items-start sm:items-center justify-between gap-4 mb-6 flex-col sm:flex-row">
+
         <div>
           <h1 className="text-2xl font-semibold text-[#1c3d3f] m-0">
             Hospital Management
@@ -82,45 +96,65 @@ export const HospitalManagement: React.FC = () => {
           to="/admin/hospitals/new"
           className="inline-flex items-center gap-2 bg-[#216d73] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#184f54] transition-colors shadow-sm"
         >
-          <FiPlus /> Add Hospital
+          <FiPlus />
+          Add Hospital
         </Link>
+
       </div>
 
+      {/* Search + count */}
       <div className="flex items-center justify-between gap-4 mb-4 flex-col sm:flex-row">
+
         <div className="relative w-full sm:max-w-sm">
+
           <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aabfb9]" />
 
           <input
             type="text"
             className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-[#e5dcc8] bg-white text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
-            placeholder="Search by hospital name or district…"
+            placeholder="Search by hospital name or district..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
         </div>
 
         <span className="text-xs text-[#8a8078] whitespace-nowrap">
           {filtered.length} of {hospitals.length} hospitals
         </span>
+
       </div>
 
       {loading ? (
         <LoadingSpinner text="Loading hospitals…" />
       ) : (
         <div className="card p-0">
+
           <div className="table-container">
+
             <table className="table">
+
+              {/* Table header */}
               <thead>
                 <tr>
                   <th>Hospital</th>
-                  <th className="hidden sm:table-cell">Type</th>
-                  <th className="hidden md:table-cell">District</th>
+
+                  <th className="hidden sm:table-cell">
+                    Type
+                  </th>
+
+                  <th className="hidden md:table-cell">
+                    District
+                  </th>
+
                   <th>Active</th>
+
                   <th>Actions</th>
                 </tr>
               </thead>
 
               <tbody>
+
                 {filtered.length === 0 ? (
                   <tr>
                     <td
@@ -181,6 +215,7 @@ export const HospitalManagement: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

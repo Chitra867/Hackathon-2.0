@@ -30,7 +30,7 @@ export const HospitalDetailPage: React.FC = () => {
   if (loading) return <LoadingSpinner text="Loading hospital details…" fullPage />;
   if (error || !hospital) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-16 text-center">
+      <div className="max-w-2xl mx-auto px-4 py-10 text-center">
         <div className="text-5xl mb-4">🏥</div>
         <h2 className="text-xl font-semibold text-gray-700 mb-4">{error || 'Hospital not found'}</h2>
         <button onClick={() => navigate(-1)} className="btn-secondary">
@@ -44,7 +44,7 @@ export const HospitalDetailPage: React.FC = () => {
   const hasOld = hospital.availability?.some((a) => a.freshness_label === 'old') ?? false;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
       {/* Back button */}
       <button
         onClick={() => navigate(-1)}
