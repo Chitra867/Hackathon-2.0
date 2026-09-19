@@ -120,26 +120,26 @@ class LogoutView(APIView):
 
 class RegisterView(generics.CreateAPIView):
     """
-    POST /api/auth/register
-    Self-registration for health workers.
+    POST /api/auth/register/
+    Public self-registration for a normal UpacharKhoj user account.
     """
     permission_classes = [AllowAny]
     serializer_class = RegisterSerializer
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
         user = serializer.save()
+
         AuditLog.log(
             action='register',
             actor=user,
             entity_type='User',
             entity_id=user.id,
-            description=f"User '{user.username}' self-registered as patient.",
-            ip_address=get_client_ip(self.request),
+            description=f"User '{user.username}' created a public user account.",
+            ip_address=get_client_ip(request),
         )
 
-    def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        user = User.objects.get(username=response.data['username'])
         refresh = RefreshToken.for_user(user)
         return Response({
             'message': 'Registration successful.',

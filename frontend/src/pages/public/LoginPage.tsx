@@ -70,7 +70,7 @@ export const LoginPage: React.FC = () => {
                   id="username"
                   type="text"
                   className="input pl-9"
-                  placeholder="Enter your username"
+                  placeholder="Enter your username or email"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required

@@ -58,6 +58,8 @@ import { HospitalAdminManagement } from './pages/admin/HospitalAdminManagement';
 import { ServiceManagement } from './pages/admin/ServiceManagement';
 import { Reports } from './pages/admin/Reports';
 
+//register page
+import { RegisterPage } from './pages/public/RegisterPage';
 
 function App() {
 
@@ -152,6 +154,13 @@ function App() {
 
 
         </Route>
+
+        {/* Register */}
+
+        <Route
+          path="/register"
+          element={<RegisterPage />}
+        />
 
 
 

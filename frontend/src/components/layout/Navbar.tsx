@@ -22,7 +22,9 @@ export const Navbar: React.FC = () => {
 
   const navLinks = [
     { to: '/search', label: 'Find Hospital' },
-    ...(isAuthenticated() ? [{ to: getDashboardPath(), label: 'Dashboard' }] : []),
+    ...(isAuthenticated() && user?.role !== 'user'
+      ? [{ to: getDashboardPath(), label: 'Dashboard' }]
+      : []),
   ];
 
   const isActive = (path: string) => location.pathname.startsWith(path);
@@ -164,7 +166,9 @@ export const Navbar: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-sm font-medium text-gray-800">{user?.first_name || user?.username}</div>
-                      <div className="text-xs text-gray-400 capitalize">{user?.role_display}</div>
+                      <div className="text-xs text-gray-400 capitalize">
+                        {user?.role_display || user?.role?.replace(/_/g, ' ')}
+                      </div>
                     </div>
                   </div>
                 </div>
