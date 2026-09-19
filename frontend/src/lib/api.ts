@@ -1,213 +1,645 @@
 import axios, { AxiosError } from 'axios';
+
 import type {
-  LoginResponse, User, Hospital, HospitalListItem, Service, Availability,
-  Referral, AuditLog, PaginatedResponse
+  LoginResponse,
+  User,
+  Hospital,
+  HospitalListItem,
+  Service,
+  Availability,
+  Referral,
+  AuditLog,
+  PaginatedResponse,
 } from '../types';
 
-// ─── Axios Instance ───────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  password2: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+}
+
+export interface RegisterResponse extends LoginResponse {
+  message?: string;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Axios Instance
+// ─────────────────────────────────────────────────────────────────────────────
+
 const api = axios.create({
   baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
+
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Request interceptor: attach JWT token
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
-  if (token) {
-    config.headers['Authorization'] = `Bearer ${token}`;
-  }
-  return config;
-});
 
-// Response interceptor: handle token refresh on 401
-api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const original = error.config as typeof error.config & { _retry?: boolean };
-    if (error.response?.status === 401 && !original?._retry) {
-      original._retry = true;
-      const refresh = localStorage.getItem('refresh_token');
-      if (refresh) {
-        try {
-          const res = await axios.post('/api/auth/token/refresh/', { refresh });
-          const newAccess: string = res.data.access;
-          localStorage.setItem('access_token', newAccess);
-          if (original.headers) {
-            original.headers['Authorization'] = `Bearer ${newAccess}`;
-          }
-          return api(original);
-        } catch {
-          localStorage.removeItem('access_token');
-          localStorage.removeItem('refresh_token');
-          window.location.href = '/login';
-        }
-      } else {
-        window.location.href = '/login';
-      }
+// ─────────────────────────────────────────────────────────────────────────────
+// Request Interceptor
+// Attach JWT access token to authenticated requests
+// ─────────────────────────────────────────────────────────────────────────────
+
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
+
+    return config;
+  },
+  (error) => {
     return Promise.reject(error);
   }
 );
 
-// ─── Auth Endpoints ───────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Response Interceptor
+// Refresh access token automatically when it expires
+// ─────────────────────────────────────────────────────────────────────────────
+
+api.interceptors.response.use(
+  (response) => response,
+
+  async (error: AxiosError) => {
+    const originalRequest = error.config as
+      | (typeof error.config & {
+          _retry?: boolean;
+        })
+      | undefined;
+
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry
+    ) {
+      originalRequest._retry = true;
+
+      const refreshToken = localStorage.getItem('refresh_token');
+
+      if (refreshToken) {
+        try {
+          const response = await axios.post(
+            '/api/auth/token/refresh/',
+            {
+              refresh: refreshToken,
+            }
+          );
+
+          const newAccessToken: string = response.data.access;
+          const newRefreshToken: string | undefined = response.data.refresh;
+
+          localStorage.setItem('access_token', newAccessToken);
+
+          // SIMPLE_JWT rotates refresh tokens in this project. Keep the latest
+          // refresh token or the next refresh attempt will use a blacklisted one.
+          if (newRefreshToken) {
+            localStorage.setItem('refresh_token', newRefreshToken);
+          }
+
+          if (originalRequest.headers) {
+            originalRequest.headers.Authorization =
+              `Bearer ${newAccessToken}`;
+          }
+
+          return api(originalRequest);
+        } catch {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
+
+          window.location.href = '/login';
+        }
+      } else {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('user');
+
+        window.location.href = '/login';
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const authApi = {
-  login: (username: string, password: string) =>
-    api.post<LoginResponse>('/auth/login/', { username, password }),
 
-  logout: (refresh: string) =>
-    api.post('/auth/logout/', { refresh }),
+  // Login
+  login: (
+    username: string,
+    password: string
+  ) =>
+    api.post<LoginResponse>(
+      '/auth/login/',
+      {
+        username,
+        password,
+      }
+    ),
 
-  register: (data: Partial<User> & { password: string }) =>
-    api.post<User>('/auth/register/', data),
 
+  // Register public user
+  register: (
+    data: RegisterRequest
+  ) =>
+    api.post<RegisterResponse>(
+      '/auth/register/',
+      data
+    ),
+
+
+  // Logout
+  logout: (
+    refresh: string
+  ) =>
+    api.post(
+      '/auth/logout/',
+      {
+        refresh,
+      }
+    ),
+
+
+  // Get logged-in user's profile
   getProfile: () =>
-    api.get<User>('/auth/profile/'),
+    api.get<User>(
+      '/auth/profile/'
+    ),
 
-  updateProfile: (data: Partial<User>) =>
-    api.patch<User>('/auth/profile/', data),
 
-  changePassword: (old_password: string, new_password: string) =>
-    api.post('/auth/change-password/', { old_password, new_password }),
+  // Update logged-in user's profile
+  updateProfile: (
+    data: Partial<User>
+  ) =>
+    api.patch<User>(
+      '/auth/profile/',
+      data
+    ),
 
-  forgotPassword: (email: string) =>
-    api.post('/auth/forgot-password/', { email }),
 
-  resetPasswordConfirm: (uid: string, token: string, new_password: string, new_password2: string) =>
-    api.post('/auth/reset-password-confirm/', { uid, token, new_password, new_password2 }),
+  // Change password
+  changePassword: (
+    old_password: string,
+    new_password: string,
+    new_password2: string
+  ) =>
+    api.post(
+      '/auth/change-password/',
+      {
+        old_password,
+        new_password,
+        new_password2,
+      }
+    ),
 
-  refreshToken: (refresh: string) =>
-    api.post<{ access: string }>('/auth/token/refresh/', { refresh }),
+
+  // Forgot password
+  forgotPassword: (
+    email: string
+  ) =>
+    api.post(
+      '/auth/forgot-password/',
+      {
+        email,
+      }
+    ),
+
+
+  // Reset password
+  resetPasswordConfirm: (
+    uid: string,
+    token: string,
+    new_password: string,
+    new_password2: string
+  ) =>
+    api.post(
+      '/auth/reset-password-confirm/',
+      {
+        uid,
+        token,
+        new_password,
+        new_password2,
+      }
+    ),
+
+
+  // Refresh access token
+  refreshToken: (
+    refresh: string
+  ) =>
+    api.post<{ access: string; refresh?: string }>(
+      '/auth/token/refresh/',
+      {
+        refresh,
+      }
+    ),
 };
 
-// ─── User Management (System Admin) ──────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User Management
+// System Admin only
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const usersApi = {
-  list: (params?: Record<string, string | number>) =>
-    api.get<PaginatedResponse<User>>('/auth/users/', { params }),
 
-  get: (id: number) =>
-    api.get<User>(`/auth/users/${id}/`),
+  list: (
+    params?: Record<string, string | number>
+  ) =>
+    api.get<PaginatedResponse<User>>(
+      '/auth/users/',
+      {
+        params,
+      }
+    ),
 
-  create: (data: Partial<User> & { password: string }) =>
-    api.post<User>('/auth/users/', data),
 
-  update: (id: number, data: Partial<User>) =>
-    api.patch<User>(`/auth/users/${id}/`, data),
+  get: (
+    id: number
+  ) =>
+    api.get<User>(
+      `/auth/users/${id}/`
+    ),
 
-  delete: (id: number) =>
-    api.delete(`/auth/users/${id}/`),
 
-  activate: (id: number) =>
-    api.post(`/auth/users/${id}/activate/`),
+  create: (
+    data: Partial<User> & {
+      password: string;
+    }
+  ) =>
+    api.post<User>(
+      '/auth/users/',
+      data
+    ),
 
-  deactivate: (id: number) =>
-    api.post(`/auth/users/${id}/deactivate/`),
+
+  update: (
+    id: number,
+    data: Partial<User>
+  ) =>
+    api.patch<User>(
+      `/auth/users/${id}/`,
+      data
+    ),
+
+
+  delete: (
+    id: number
+  ) =>
+    api.delete(
+      `/auth/users/${id}/`
+    ),
+
+
+  activate: (
+    id: number
+  ) =>
+    api.post(
+      `/auth/users/${id}/activate/`
+    ),
+
+
+  deactivate: (
+    id: number
+  ) =>
+    api.post(
+      `/auth/users/${id}/deactivate/`
+    ),
 };
 
-// ─── Hospital Endpoints ───────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hospital Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const hospitalsApi = {
-  list: (params?: Record<string, string | number | boolean>) =>
-    api.get<PaginatedResponse<HospitalListItem>>('/hospitals/', { params }),
 
-  get: (id: number) =>
-    api.get<Hospital>(`/hospitals/${id}/`),
+  list: (
+    params?: Record<string, string | number | boolean>
+  ) =>
+    api.get<PaginatedResponse<HospitalListItem>>(
+      '/hospitals/',
+      {
+        params,
+      }
+    ),
 
-  create: (data: Partial<Hospital>) =>
-    api.post<Hospital>('/hospitals/', data),
 
-  update: (id: number, data: Partial<Hospital>) =>
-    api.patch<Hospital>(`/hospitals/${id}/`, data),
+  get: (
+    id: number
+  ) =>
+    api.get<Hospital>(
+      `/hospitals/${id}/`
+    ),
 
-  delete: (id: number) =>
-    api.delete(`/hospitals/${id}/`),
 
-  verify: (id: number) =>
-    api.post(`/hospitals/${id}/verify/`),
+  create: (
+    data: Partial<Hospital>
+  ) =>
+    api.post<Hospital>(
+      '/hospitals/',
+      data
+    ),
 
-  reject: (id: number) =>
-    api.post(`/hospitals/${id}/reject/`),
+
+  update: (
+    id: number,
+    data: Partial<Hospital>
+  ) =>
+    api.patch<Hospital>(
+      `/hospitals/${id}/`,
+      data
+    ),
+
+
+  delete: (
+    id: number
+  ) =>
+    api.delete(
+      `/hospitals/${id}/`
+    ),
+
+
+  verify: (
+    id: number
+  ) =>
+    api.post(
+      `/hospitals/${id}/verify/`
+    ),
+
+
+  reject: (
+    id: number
+  ) =>
+    api.post(
+      `/hospitals/${id}/reject/`
+    ),
 };
 
-// ─── Service Endpoints ────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Service Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const servicesApi = {
-  list: (params?: Record<string, string>) =>
-    api.get<PaginatedResponse<Service>>('/services/', { params }),
 
-  get: (id: number) =>
-    api.get<Service>(`/services/${id}/`),
+  list: (
+    params?: Record<string, string>
+  ) =>
+    api.get<PaginatedResponse<Service>>(
+      '/services/',
+      {
+        params,
+      }
+    ),
 
-  create: (data: Partial<Service>) =>
-    api.post<Service>('/services/', data),
 
-  update: (id: number, data: Partial<Service>) =>
-    api.patch<Service>(`/services/${id}/`, data),
+  get: (
+    id: number
+  ) =>
+    api.get<Service>(
+      `/services/${id}/`
+    ),
 
-  delete: (id: number) =>
-    api.delete(`/services/${id}/`),
+
+  create: (
+    data: Partial<Service>
+  ) =>
+    api.post<Service>(
+      '/services/',
+      data
+    ),
+
+
+  update: (
+    id: number,
+    data: Partial<Service>
+  ) =>
+    api.patch<Service>(
+      `/services/${id}/`,
+      data
+    ),
+
+
+  delete: (
+    id: number
+  ) =>
+    api.delete(
+      `/services/${id}/`
+    ),
 };
 
-// ─── Hospital Services ────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hospital Services
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const hospitalServicesApi = {
-  list: (hospitalId: number) =>
-    api.get(`/hospital-services/?hospital=${hospitalId}`),
 
-  create: (data: { hospital: number; service: number; is_available?: boolean; notes?: string }) =>
-    api.post('/hospital-services/', data),
+  list: (
+    hospitalId: number
+  ) =>
+    api.get(
+      `/hospital-services/?hospital=${hospitalId}`
+    ),
 
-  update: (id: number, data: { is_available?: boolean; notes?: string }) =>
-    api.patch(`/hospital-services/${id}/`, data),
 
-  delete: (id: number) =>
-    api.delete(`/hospital-services/${id}/`),
+  create: (
+    data: {
+      hospital: number;
+      service: number;
+      is_available?: boolean;
+      notes?: string;
+    }
+  ) =>
+    api.post(
+      '/hospital-services/',
+      data
+    ),
+
+
+  update: (
+    id: number,
+    data: {
+      is_available?: boolean;
+      notes?: string;
+    }
+  ) =>
+    api.patch(
+      `/hospital-services/${id}/`,
+      data
+    ),
+
+
+  delete: (
+    id: number
+  ) =>
+    api.delete(
+      `/hospital-services/${id}/`
+    ),
 };
 
-// ─── Availability Endpoints ───────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Availability Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const availabilityApi = {
-  list: (params?: Record<string, string | number>) =>
-    api.get<PaginatedResponse<Availability>>('/availability/', { params }),
 
-  get: (id: number) =>
-    api.get<Availability>(`/availability/${id}/`),
+  list: (
+    params?: Record<string, string | number>
+  ) =>
+    api.get<PaginatedResponse<Availability>>(
+      '/availability/',
+      {
+        params,
+      }
+    ),
 
-  create: (data: Partial<Availability>) =>
-    api.post<Availability>('/availability/', data),
 
-  update: (id: number, data: Partial<Availability>) =>
-    api.patch<Availability>(`/availability/${id}/`, data),
+  get: (
+    id: number
+  ) =>
+    api.get<Availability>(
+      `/availability/${id}/`
+    ),
 
-  bulkUpdate: (hospitalId: number, updates: Partial<Availability>[]) =>
-    api.post(`/hospitals/${hospitalId}/availability/bulk_update/`, { updates }),
+
+  create: (
+    data: Partial<Availability>
+  ) =>
+    api.post<Availability>(
+      '/availability/',
+      data
+    ),
+
+
+  update: (
+    id: number,
+    data: Partial<Availability>
+  ) =>
+    api.patch<Availability>(
+      `/availability/${id}/`,
+      data
+    ),
+
+
+  bulkUpdate: (
+    hospitalId: number,
+    updates: Partial<Availability>[]
+  ) =>
+    api.post(
+      `/hospitals/${hospitalId}/availability/bulk_update/`,
+      {
+        updates,
+      }
+    ),
 };
 
-// ─── Referral Endpoints ───────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Referral Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const referralsApi = {
-  list: (params?: Record<string, string | number>) =>
-    api.get<PaginatedResponse<Referral>>('/referrals/', { params }),
 
-  get: (id: number) =>
-    api.get<Referral>(`/referrals/${id}/`),
+  list: (
+    params?: Record<string, string | number>
+  ) =>
+    api.get<PaginatedResponse<Referral>>(
+      '/referrals/',
+      {
+        params,
+      }
+    ),
 
-  create: (data: {
-    destination_facility: number;
-    service: number;
-    urgency: string;
-    patient_age?: number;
-    patient_gender?: string;
-    patient_condition_summary: string;
-    reason: string;
-  }) =>
-    api.post<Referral>('/referrals/', data),
 
-  respond: (id: number, data: { status: string; note?: string }) =>
-    api.patch<Referral>(`/referrals/${id}/respond/`, data),
+  get: (
+    id: number
+  ) =>
+    api.get<Referral>(
+      `/referrals/${id}/`
+    ),
 
-  updateStatus: (id: number, data: { status: string }) =>
-    api.patch<Referral>(`/referrals/${id}/update-status/`, data),
+
+  create: (
+    data: {
+      destination_facility: number;
+      service: number;
+      urgency: string;
+      patient_age?: number;
+      patient_gender?: string;
+      patient_condition_summary: string;
+      reason: string;
+    }
+  ) =>
+    api.post<Referral>(
+      '/referrals/',
+      data
+    ),
+
+
+  respond: (
+    id: number,
+    data: {
+      status: string;
+      note?: string;
+    }
+  ) =>
+    api.patch<Referral>(
+      `/referrals/${id}/respond/`,
+      data
+    ),
+
+
+  updateStatus: (
+    id: number,
+    data: {
+      status: string;
+    }
+  ) =>
+    api.patch<Referral>(
+      `/referrals/${id}/update-status/`,
+      data
+    ),
 };
 
-// ─── Audit Log Endpoints ──────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Audit Log Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const auditApi = {
-  list: (params?: Record<string, string | number>) =>
-    api.get<PaginatedResponse<AuditLog>>('/audit/', { params }),
+
+  list: (
+    params?: Record<string, string | number>
+  ) =>
+    api.get<PaginatedResponse<AuditLog>>(
+      '/audit/',
+      {
+        params,
+      }
+    ),
 };
+
 
 export default api;
