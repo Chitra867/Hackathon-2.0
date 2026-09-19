@@ -17,21 +17,27 @@ export const Navbar: React.FC = () => {
   const authenticated = isAuthenticated();
 
   const handleLogout = async () => {
-    await logout();
-    toast.success('Logged out successfully');
-    navigate('/');
-    setMenuOpen(false);
+    try {
+      await logout();
+      toast.success('Logged out successfully');
+      navigate('/');
+      setMenuOpen(false);
+    } catch {
+      toast.error('Logout failed');
+    }
   };
 
   const navLinks = [
-    { to: '/search', label: 'Find Hospital' },
+    { to: '/', label: 'Find Hospital' },
     { to: '/about', label: 'About' },
-    ...(authenticated ? [{ to: getDashboardPath(), label: 'Dashboard' }] : []),
+    ...(authenticated && user?.role !== 'user'
+      ? [{ to: getDashboardPath(), label: 'Dashboard' }]
+      : []),
   ];
 
   const isActive = (path: string) => {
-    if (path === '/search' || path === '/about') {
-      return location.pathname === path;
+    if (path === '/') {
+      return location.pathname === '/' || location.pathname === '/search';
     }
 
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
