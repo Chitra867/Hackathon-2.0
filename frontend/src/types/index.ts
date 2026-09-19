@@ -92,7 +92,7 @@ export type FreshnessLabel = 'current' | 'recent' | 'old' | 'stale';
 export interface Availability {
   id: number;
   hospital: number;
-  hospital_name: string;
+  hospital_name?: string;
   service: number | null;
   service_name: string | null;
   availability_type: string;
@@ -104,11 +104,12 @@ export interface Availability {
   notes: string;
   updated_at: string;
   updated_by: number | null;
-  updated_by_name: string;
+  updated_by_name?: string;
   source: 'manual' | 'api' | 'auto';
-  source_display: string;
+  source_display?: string;
   freshness_label: FreshnessLabel;
-  freshness_minutes: number;
+  freshness_minutes?: number;
+  age_minutes?: number;
   is_active: boolean;
 }
 

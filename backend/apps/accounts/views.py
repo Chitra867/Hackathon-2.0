@@ -24,6 +24,7 @@ from apps.accounts.serializers import (
     ProfileSerializer,
     UserSerializer,
     UserCreateSerializer,
+    UserUpdateSerializer,
     ChangePasswordSerializer,
 )
 from apps.accounts.permissions import IsSystemAdmin
@@ -349,6 +350,8 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'create':
             return UserCreateSerializer
+        if self.action in ('update', 'partial_update'):
+            return UserUpdateSerializer
         return UserSerializer
 
     def perform_create(self, serializer):

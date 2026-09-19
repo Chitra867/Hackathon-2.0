@@ -8,6 +8,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenRefreshView
 
+# ── Customize Django admin branding ─────────────────────────────────────────
+admin.site.site_header = 'UpacharKhoj Admin'
+admin.site.site_title = 'UpacharKhoj'
+admin.site.index_title = 'Nepal Healthcare Platform — Admin Panel'
+
 urlpatterns = [
     path('admin/', admin.site.urls),
 

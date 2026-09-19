@@ -17,13 +17,13 @@ export const ProtectedRoute: React.FC<Props> = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
-    // Redirect to their own dashboard
+    // Redirect to their own area
     const roleRedirects: Record<string, string> = {
-      system_admin: '/admin/dashboard',
+      system_admin:   '/',                  // system_admin has no React portal — stays on public site
       hospital_admin: '/hadmin/dashboard',
       hospital_staff: '/hadmin/dashboard',
-      health_worker: '/search',
-      patient: '/search',
+      health_worker:  '/search',
+      patient:        '/search',
     };
     return <Navigate to={roleRedirects[user.role] || '/search'} replace />;
   }

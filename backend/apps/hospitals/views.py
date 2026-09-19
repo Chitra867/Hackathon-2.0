@@ -80,15 +80,23 @@ class HospitalViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Hospital.objects.all()
 
-        # Filter by service if provided
-        service_id = self.request.query_params.get('service')
-        if service_id:
-            queryset = queryset.filter(
-                hospital_services__service_id=service_id,
-                hospital_services__is_available=True,
-            ).distinct()
+        # Filter by service name (text search) if provided
+        service_param = self.request.query_params.get('service')
+        if service_param:
+            # Try to match by name (case-insensitive) first, then by ID
+            if service_param.isdigit():
+                queryset = queryset.filter(
+                    hospital_services__service_id=int(service_param),
+                    hospital_services__is_available=True,
+                ).distinct()
+            else:
+                queryset = queryset.filter(
+                    hospital_services__service__name__icontains=service_param,
+                    hospital_services__is_available=True,
+                ).distinct()
 
-        # Public users see only active, verified hospitals
+        # Public users and unauthenticated: only active+verified hospitals
+        # Hospital admins and system admins: see all hospitals (for management)
         user = self.request.user
         if not user.is_authenticated or user.role not in ('hospital_admin', 'system_admin'):
             queryset = queryset.filter(is_active=True, verification_status='verified')

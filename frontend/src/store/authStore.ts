@@ -166,7 +166,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   getDashboardPath: () => {
     const role = get().user?.role;
     switch (role) {
-      case 'system_admin':   return '/admin/dashboard';
+      case 'system_admin':   return '/';             // uses Admin Panel button in navbar
       case 'hospital_admin': return '/hadmin/dashboard';
       case 'hospital_staff': return '/hadmin/dashboard';
       case 'patient':        return '/search';

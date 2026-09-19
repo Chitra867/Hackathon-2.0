@@ -163,14 +163,52 @@ class BulkAvailabilitySerializer(serializers.Serializer):
         return value
 
 
+class HospitalServiceListSerializer(serializers.ModelSerializer):
+    """Compact hospital-service for list views — only the fields the search card needs."""
+    service_name = serializers.ReadOnlyField(source='service.name')
+    service_category = serializers.ReadOnlyField(source='service.category')
+
+    class Meta:
+        model = HospitalService
+        fields = ['id', 'service', 'service_name', 'service_category', 'is_available', 'notes']
+
+
+class AvailabilityListSerializer(serializers.ModelSerializer):
+    """Compact availability for list views."""
+    freshness_label = serializers.ReadOnlyField()
+    age_minutes = serializers.ReadOnlyField()
+    availability_type_display = serializers.ReadOnlyField(source='get_availability_type_display')
+    status_display = serializers.ReadOnlyField(source='get_status_display')
+    service_name = serializers.ReadOnlyField(source='service.name')
+    updated_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Availability
+        fields = [
+            'id', 'availability_type', 'availability_type_display',
+            'status', 'status_display',
+            'service', 'service_name',
+            'available_count', 'total_count', 'notes',
+            'updated_at', 'updated_by_name',
+            'source', 'is_active',
+            'freshness_label', 'age_minutes',
+        ]
+
+    def get_updated_by_name(self, obj):
+        if obj.updated_by:
+            return obj.updated_by.get_full_name() or obj.updated_by.username
+        return None
+
+
 class HospitalSerializer(serializers.ModelSerializer):
-    """List serializer for Hospital model."""
+    """List serializer for Hospital model — includes services and availability for search page."""
 
     type_display = serializers.ReadOnlyField(source='get_type_display')
     verification_status_display = serializers.ReadOnlyField(
         source='get_verification_status_display'
     )
-    services_count = serializers.SerializerMethodField()
+    services = serializers.SerializerMethodField()
+    availability = serializers.SerializerMethodField()
 
     class Meta:
         model = Hospital
@@ -180,12 +218,18 @@ class HospitalSerializer(serializers.ModelSerializer):
             'latitude', 'longitude',
             'phone', 'email', 'website', 'emergency_contact',
             'verification_status', 'verification_status_display',
-            'is_active', 'created_at', 'services_count',
+            'is_active', 'created_at',
+            'services', 'availability',
         ]
         read_only_fields = ['created_at']
 
-    def get_services_count(self, obj):
-        return obj.hospital_services.filter(is_available=True).count()
+    def get_services(self, obj):
+        qs = obj.hospital_services.select_related('service')
+        return HospitalServiceListSerializer(qs, many=True).data
+
+    def get_availability(self, obj):
+        qs = obj.availability_records.filter(is_active=True).select_related('service', 'updated_by')
+        return AvailabilityListSerializer(qs, many=True).data
 
 
 class HospitalDetailSerializer(serializers.ModelSerializer):
@@ -211,16 +255,14 @@ class HospitalDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_services(self, obj):
-        qs = obj.hospital_services.filter(
-            is_available=True
-        ).select_related('service')
-        return HospitalServiceSerializer(qs, many=True).data
+        qs = obj.hospital_services.select_related('service')
+        return HospitalServiceListSerializer(qs, many=True).data
 
     def get_availability(self, obj):
         qs = obj.availability_records.filter(
             is_active=True
         ).select_related('service', 'updated_by')
-        return AvailabilitySerializer(qs, many=True).data
+        return AvailabilityListSerializer(qs, many=True).data
 
 
 class HospitalWriteSerializer(serializers.ModelSerializer):
