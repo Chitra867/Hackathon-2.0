@@ -3,7 +3,7 @@
 // ────────────────────────────────────────────────────────
 
 export type UserRole =
-  | 'patient'
+  | 'user'
   | 'health_worker'
   | 'hospital_staff'
   | 'hospital_admin'

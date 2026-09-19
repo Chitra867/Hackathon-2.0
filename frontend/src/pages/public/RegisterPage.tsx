@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -53,6 +54,7 @@ export const RegisterPage: React.FC = () => {
         last_name: form.last_name,
         phone: form.phone,
         password: form.password,
+        password2: form.password2,
       });
       toast.success(`Welcome to UpacharKhoj, ${form.first_name || form.username}!`);
       navigate(getDashboardPath(), { replace: true });
