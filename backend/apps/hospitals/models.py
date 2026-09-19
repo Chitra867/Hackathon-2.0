@@ -235,8 +235,8 @@ class Availability(models.Model):
         verbose_name_plural = 'Availability Records'
         ordering = ['-updated_at']
         constraints = [
-            models.CheckConstraint(
-                condition=(
+             models.CheckConstraint(
+                check=(
                     models.Q(available_count__isnull=True)
                     | models.Q(total_count__isnull=True)
                     | models.Q(

@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name='availability',
             constraint=models.CheckConstraint(
-                condition=models.Q(
+                check=models.Q(
                     ('available_count__isnull', True),
                     ('total_count__isnull', True),
                     ('available_count__lte', models.F('total_count')),
