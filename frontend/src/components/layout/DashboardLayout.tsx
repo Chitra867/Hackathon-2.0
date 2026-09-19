@@ -4,7 +4,7 @@ import { Navbar } from './Navbar';
 import {
   FiHome, FiList, FiActivity,
   FiUsers, FiSettings, FiFileText, FiChevronLeft, FiChevronRight,
-  FiBarChart2, FiMapPin, FiClock, FiShield,
+  FiBarChart2, FiMapPin, FiClock, FiShield, FiUser, FiInbox,
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore';
 
@@ -18,11 +18,12 @@ const getNavItems = (role: string): NavItem[] => {
   switch (role) {
     case 'system_admin':
       return [
-        { to: '/admin/dashboard',       label: 'Dashboard',        icon: <FiBarChart2 /> },
-        { to: '/admin/hospitals',        label: 'Hospitals',        icon: <FiMapPin /> },
-        { to: '/admin/hospital-admins',  label: 'Hospital Admins',  icon: <FiUsers /> },
-        { to: '/admin/services',         label: 'Services',         icon: <FiSettings /> },
-        { to: '/admin/reports',          label: 'Reports',          icon: <FiFileText /> },
+        { to: '/admin/dashboard',          label: 'Dashboard',         icon: <FiBarChart2 /> },
+        { to: '/admin/hospitals',           label: 'Hospitals',         icon: <FiMapPin /> },
+        { to: '/admin/hospital-admins',     label: 'Hospital Admins',   icon: <FiUsers /> },
+        { to: '/admin/patient-requests',    label: 'Patient Requests',  icon: <FiInbox /> },
+        { to: '/admin/services',            label: 'Services',          icon: <FiSettings /> },
+        { to: '/admin/reports',             label: 'Reports',           icon: <FiFileText /> },
       ];
     case 'hospital_admin':
     case 'hospital_staff':
@@ -30,6 +31,7 @@ const getNavItems = (role: string): NavItem[] => {
         { to: '/hadmin/dashboard',        label: 'Dashboard',           icon: <FiHome /> },
         { to: '/hadmin/availability',     label: 'Availability',        icon: <FiActivity /> },
         { to: '/hadmin/specialists',      label: 'Specialists & Equip', icon: <FiUsers /> },
+        { to: '/hadmin/doctors',          label: 'Doctors',             icon: <FiUser /> },
         { to: '/hadmin/referrals',        label: 'Referrals',           icon: <FiList /> },
         { to: '/hadmin/referral-history', label: 'Referral History',    icon: <FiClock /> },
         { to: '/hadmin/profile',          label: 'Hospital Profile',    icon: <FiSettings /> },

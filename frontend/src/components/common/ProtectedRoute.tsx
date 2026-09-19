@@ -19,13 +19,13 @@ export const ProtectedRoute: React.FC<Props> = ({ children, allowedRoles }) => {
   if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     // Redirect to their own dashboard
     const roleRedirects: Record<string, string> = {
-      system_admin: '/admin/dashboard',
+      system_admin:   '/admin/dashboard',
       hospital_admin: '/hadmin/dashboard',
-      hospital_staff: '/hadmin/dashboard',
-      health_worker: '/hw/dashboard',
-      user: '/',
+      hospital_staff: '/user/dashboard',
+      health_worker:  '/user/dashboard',
+      user:           '/user/dashboard',
     };
-    return <Navigate to={roleRedirects[user.role] || '/search'} replace />;
+    return <Navigate to={roleRedirects[user.role] || '/user/dashboard'} replace />;
   }
 
   return <>{children}</>;

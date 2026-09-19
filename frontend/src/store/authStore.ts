@@ -216,13 +216,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       case 'system_admin':
         return '/admin/dashboard';
       case 'hospital_admin':
-      case 'hospital_staff':
         return '/hadmin/dashboard';
-      case 'health_worker':
-        return '/hw/dashboard';
       case 'user':
+        return '/user/dashboard';
+      // health_worker and hospital_staff no longer have dedicated portals —
+      // redirect them to the user portal so they can still browse hospitals.
+      case 'health_worker':
+      case 'hospital_staff':
       default:
-        return '/';
+        return '/user/dashboard';
     }
   },
 }));

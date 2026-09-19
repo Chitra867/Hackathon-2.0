@@ -236,7 +236,7 @@ class Availability(models.Model):
         ordering = ['-updated_at']
         constraints = [
             models.CheckConstraint(
-                check=(
+                condition=(
                     models.Q(available_count__isnull=True)
                     | models.Q(total_count__isnull=True)
                     | models.Q(
@@ -278,3 +278,203 @@ class Availability(models.Model):
         now = timezone.now()
         age = now - self.updated_at
         return int(age.total_seconds() / 60)
+
+
+class Doctor(models.Model):
+    """
+    A doctor or specialist associated with a hospital.
+    Hospital admins maintain this information.
+    """
+
+    DUTY_STATUS = [
+        ('on_duty', 'On Duty'),
+        ('off_duty', 'Off Duty'),
+        ('on_leave', 'On Leave'),
+        ('unknown', 'Unknown'),
+    ]
+
+    hospital = models.ForeignKey(
+        Hospital,
+        on_delete=models.CASCADE,
+        related_name='doctors',
+        verbose_name='Hospital'
+    )
+    name = models.CharField(max_length=200, verbose_name='Doctor Name')
+    specialty = models.CharField(max_length=200, verbose_name='Specialty')
+    qualification = models.CharField(
+        max_length=300, blank=True, default='',
+        verbose_name='Qualification'
+    )
+    phone = models.CharField(
+        max_length=30, blank=True, default='',
+        verbose_name='Contact Phone'
+    )
+    duty_status = models.CharField(
+        max_length=20,
+        choices=DUTY_STATUS,
+        default='unknown',
+        verbose_name='Duty Status'
+    )
+    consultation_days = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='Consultation Days',
+        help_text='E.g. "Mon, Wed, Fri" or "Mon–Fri"'
+    )
+    consultation_time = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name='Consultation Time',
+        help_text='E.g. "9:00 AM – 1:00 PM"'
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Is Active')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Last Updated')
+    updated_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='doctor_updates',
+        verbose_name='Updated By'
+    )
+
+    class Meta:
+        verbose_name = 'Doctor'
+        verbose_name_plural = 'Doctors'
+        ordering = ['hospital', 'name']
+
+    def __str__(self):
+        return f"Dr. {self.name} ({self.specialty}) — {self.hospital.name}"
+
+
+class PatientRequest(models.Model):
+    """
+    A patient-initiated assistance request to a hospital.
+    Distinct from the institutional Referral which requires a health worker.
+    """
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+        ('call_required', 'Call Required'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    import uuid as _uuid
+
+    request_code = models.CharField(
+        max_length=12,
+        unique=True,
+        editable=False,
+        verbose_name='Request Code'
+    )
+    patient = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.CASCADE,
+        related_name='patient_requests',
+        verbose_name='Patient'
+    )
+    destination_hospital = models.ForeignKey(
+        Hospital,
+        on_delete=models.PROTECT,
+        related_name='patient_requests',
+        verbose_name='Destination Hospital'
+    )
+    service = models.ForeignKey(
+        Service,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='patient_requests',
+        verbose_name='Requested Service'
+    )
+    service_name_freetext = models.CharField(
+        max_length=300, blank=True, default='',
+        verbose_name='Service (free text)'
+    )
+    contact_phone = models.CharField(
+        max_length=30, blank=True, default='',
+        verbose_name='Contact Phone'
+    )
+    patient_age = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name='Patient Age'
+    )
+    condition_summary = models.CharField(
+        max_length=500,
+        verbose_name='Condition Summary'
+    )
+    notes = models.TextField(
+        blank=True, default='',
+        verbose_name='Additional Notes'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+        verbose_name='Status'
+    )
+    response_note = models.TextField(
+        blank=True, default='',
+        verbose_name='Hospital Response Note'
+    )
+    responded_by = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='responded_patient_requests',
+        verbose_name='Responded By'
+    )
+    responded_at = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name='Responded At'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Updated At')
+
+    class Meta:
+        verbose_name = 'Patient Request'
+        verbose_name_plural = 'Patient Requests'
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.request_code:
+            import uuid
+            self.request_code = uuid.uuid4().hex[:10].upper()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return (
+            f"[{self.request_code}] {self.patient.username} → "
+            f"{self.destination_hospital.name} ({self.get_status_display()})"
+        )
+
+
+class PatientRequestEvent(models.Model):
+    """Audit trail for status changes on a patient request."""
+
+    request = models.ForeignKey(
+        PatientRequest,
+        on_delete=models.CASCADE,
+        related_name='events',
+        verbose_name='Patient Request'
+    )
+    actor = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='patient_request_events',
+        verbose_name='Actor'
+    )
+    old_status = models.CharField(max_length=20, blank=True, default='', verbose_name='Old Status')
+    new_status = models.CharField(max_length=20, verbose_name='New Status')
+    note = models.TextField(blank=True, default='', verbose_name='Note')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Created At')
+
+    class Meta:
+        verbose_name = 'Patient Request Event'
+        verbose_name_plural = 'Patient Request Events'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return (
+            f"[{self.request.request_code}] "
+            f"{self.old_status or 'new'} → {self.new_status}"
+        )

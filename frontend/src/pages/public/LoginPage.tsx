@@ -133,7 +133,7 @@ export const LoginPage: React.FC = () => {
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-4">
-          Are you hospital staff or admin?{' '}
+          Are you a hospital admin?{' '}
           <span className="text-gray-500">Use the same login — you'll be redirected to your portal.</span>
         </p>
       </div>

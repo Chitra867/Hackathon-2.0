@@ -20,11 +20,14 @@ import { format, isValid } from 'date-fns';
 import {
   referralsApi,
   hospitalsApi,
+  patientRequestsApi,
 } from '../../lib/api';
 
 import type {
   Referral,
   ReferralStatus,
+  PatientRequest,
+  PatientRequestStatus,
 } from '../../types';
 
 import { ReferralStatusBadge } from '../../components/common/ReferralStatusBadge';
@@ -61,6 +64,17 @@ const TABS = [
 type TabKey = (typeof TABS)[number]['key'];
 
 type ResponseStatus = 'accepted' | 'rejected';
+
+// Top-level page sections: referrals vs patient requests
+type PageSection = 'referrals' | 'patient_requests';
+
+const PR_STATUS_COLORS: Record<string, string> = {
+  pending:       'bg-yellow-100 text-yellow-800',
+  accepted:      'bg-green-100 text-green-700',
+  rejected:      'bg-red-100 text-red-700',
+  call_required: 'bg-blue-100 text-blue-700',
+  cancelled:     'bg-gray-100 text-gray-500',
+};
 
 // --------------------------------------------------
 // HELPER FUNCTIONS
@@ -131,6 +145,24 @@ const UrgencyBadge: React.FC<{
 
 export const IncomingReferrals: React.FC = () => {
   const { user } = useAuthStore();
+
+  // ------------------------------------------------
+  // SECTION STATE (Referrals vs Patient Requests)
+  // ------------------------------------------------
+
+  const [pageSection, setPageSection] =
+    useState<PageSection>('referrals');
+
+  // ------------------------------------------------
+  // PATIENT REQUESTS STATE
+  // ------------------------------------------------
+
+  const [patientRequests, setPatientRequests] = useState<PatientRequest[]>([]);
+  const [prLoading, setPrLoading] = useState(false);
+  const [prError, setPrError] = useState<string | null>(null);
+  const [prRefreshKey, setPrRefreshKey] = useState(0);
+  const [prResponding, setPrResponding] = useState<number | null>(null);
+  const prRespondingRef = useRef(false);
 
   // ------------------------------------------------
   // STATE
@@ -352,6 +384,73 @@ export const IncomingReferrals: React.FC = () => {
       mountedRef.current = false;
     };
   }, [activeTab, page, refreshKey]);
+
+  // ------------------------------------------------
+  // FETCH PATIENT REQUESTS
+  // ------------------------------------------------
+
+  useEffect(() => {
+    if (!user?.hospital) return;
+    let cancelled = false;
+
+    const fetchPR = async () => {
+      setPrLoading(true);
+      setPrError(null);
+      try {
+        const res = await patientRequestsApi.list({
+          destination_hospital: user.hospital as number,
+          page_size: 100,
+        });
+        if (cancelled) return;
+        const data = res.data;
+        setPatientRequests(
+          Array.isArray(data)
+            ? (data as PatientRequest[])
+            : (data as { results: PatientRequest[] }).results ?? [],
+        );
+      } catch {
+        if (!cancelled) {
+          setPrError('Unable to load patient requests. Please try again.');
+          toast.error('Failed to load patient requests');
+        }
+      } finally {
+        if (!cancelled) setPrLoading(false);
+      }
+    };
+
+    void fetchPR();
+    return () => { cancelled = true; };
+  }, [user?.hospital, prRefreshKey]);
+
+  const refreshPatientRequests = () => {
+    setPrRefreshKey((k) => k + 1);
+  };
+
+  const handlePRRespond = async (
+    id: number,
+    status: PatientRequestStatus,
+    note = '',
+  ) => {
+    if (prRespondingRef.current) return;
+    prRespondingRef.current = true;
+    setPrResponding(id);
+    try {
+      await patientRequestsApi.respond(id, { status, note });
+      toast.success(
+        status === 'accepted'
+          ? 'Request accepted'
+          : status === 'rejected'
+            ? 'Request rejected'
+            : 'Call required — patient notified',
+      );
+      refreshPatientRequests();
+    } catch {
+      toast.error('Failed to update request status. Please try again.');
+    } finally {
+      prRespondingRef.current = false;
+      setPrResponding(null);
+    }
+  };
 
   // ------------------------------------------------
   // REFRESH REFERRALS
@@ -690,13 +789,13 @@ export const IncomingReferrals: React.FC = () => {
 
         <button
           type="button"
-          onClick={refreshReferrals}
-          disabled={loading}
+          onClick={pageSection === 'referrals' ? refreshReferrals : refreshPatientRequests}
+          disabled={pageSection === 'referrals' ? loading : prLoading}
           className="btn-secondary btn-sm flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <FiRefreshCw
             className={
-              loading ? 'animate-spin' : ''
+              (pageSection === 'referrals' ? loading : prLoading) ? 'animate-spin' : ''
             }
           />
 
@@ -705,11 +804,165 @@ export const IncomingReferrals: React.FC = () => {
       </div>
 
       {/* ------------------------------------------
-          STATUS TABS
+          TOP-LEVEL SECTION TABS
       ------------------------------------------ */}
 
       <div className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1">
-        {TABS.map((tab) => (
+        <button
+          type="button"
+          onClick={() => setPageSection('referrals')}
+          className={`whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+            pageSection === 'referrals'
+              ? 'bg-white text-primary-700 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Referrals
+        </button>
+        <button
+          type="button"
+          onClick={() => setPageSection('patient_requests')}
+          className={`whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+            pageSection === 'patient_requests'
+              ? 'bg-white text-primary-700 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Patient Requests
+        </button>
+      </div>
+
+      {/* ------------------------------------------
+          PATIENT REQUESTS SECTION
+      ------------------------------------------ */}
+
+      {pageSection === 'patient_requests' && (
+        <div>
+          {prLoading ? (
+            <LoadingSpinner text="Loading patient requests..." />
+          ) : prError ? (
+            <div className="card py-10 text-center">
+              <p className="mb-4 text-sm text-red-600">{prError}</p>
+              <button type="button" onClick={refreshPatientRequests} className="btn-primary btn-sm">
+                Try Again
+              </button>
+            </div>
+          ) : patientRequests.length === 0 ? (
+            <div className="card py-10 text-center text-gray-500">
+              <div className="mb-3 text-4xl">📩</div>
+              <p className="font-medium">No patient requests found</p>
+              <p className="mt-1 text-sm text-gray-400">
+                Patient requests directed to your hospital will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="card p-0">
+              <div className="table-container">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Patient</th>
+                      <th className="hidden sm:table-cell">Service</th>
+                      <th className="hidden sm:table-cell">Condition</th>
+                      <th>Status</th>
+                      <th className="hidden md:table-cell">Date</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {patientRequests.map((pr) => {
+                      const isPending = pr.status === 'pending';
+                      const isActing = prResponding === pr.id;
+                      return (
+                        <tr key={pr.id}>
+                          <td className="font-mono text-xs font-bold text-gray-700">
+                            {pr.request_code || '—'}
+                          </td>
+                          <td>
+                            <div className="text-sm font-medium text-gray-800">{pr.patient_name}</div>
+                            {pr.contact_phone && (
+                              <div className="text-xs text-gray-500">{pr.contact_phone}</div>
+                            )}
+                          </td>
+                          <td className="hidden text-sm text-gray-600 sm:table-cell">
+                            {pr.service_name || pr.service_name_freetext || '—'}
+                          </td>
+                          <td className="hidden text-sm text-gray-500 sm:table-cell max-w-[180px]">
+                            <span className="line-clamp-2">{pr.condition_summary || '—'}</span>
+                          </td>
+                          <td>
+                            <span
+                              className={`badge text-xs ${PR_STATUS_COLORS[pr.status] ?? 'bg-gray-100 text-gray-600'}`}
+                            >
+                              {pr.status_display || pr.status}
+                            </span>
+                          </td>
+                          <td className="hidden text-xs text-gray-500 md:table-cell">
+                            {formatReferralDate(pr.created_at)}
+                          </td>
+                          <td>
+                            {isPending && (
+                              <div className="flex flex-wrap items-center gap-1">
+                                <button
+                                  type="button"
+                                  disabled={prResponding !== null}
+                                  onClick={() => void handlePRRespond(pr.id, 'accepted')}
+                                  className="btn-success btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {isActing ? 'Processing...' : 'Accept'}
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={prResponding !== null}
+                                  onClick={() => void handlePRRespond(pr.id, 'call_required')}
+                                  className="btn-sm text-xs rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Call Required
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={prResponding !== null}
+                                  onClick={() => void handlePRRespond(pr.id, 'rejected')}
+                                  className="btn-danger btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            )}
+                            {!isPending && pr.response_note && (
+                              <p className="text-xs text-gray-500 max-w-[180px] line-clamp-2">{pr.response_note}</p>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
+                <div className="text-xs text-gray-500">
+                  {patientRequests.length} patient{' '}
+                  {patientRequests.length === 1 ? 'request' : 'requests'}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ------------------------------------------
+          REFERRALS SECTION (existing)
+      ------------------------------------------ */}
+
+      {pageSection === 'referrals' && (
+        <div>
+          {/* ------------------------------------------
+              STATUS TABS
+          ------------------------------------------ */}
+
+          <div className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1">
+          {TABS.map((tab) => (
           <button
             key={tab.key || 'all'}
             type="button"
@@ -1132,6 +1385,8 @@ export const IncomingReferrals: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>
