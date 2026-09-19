@@ -6,7 +6,10 @@ export const Footer: React.FC = () => (
     <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
       <div className="flex flex-col items-center justify-between gap-4 md:flex-row">
         <div className="flex items-center gap-2">
-          <GiHeartPlus className="text-xl text-primary-700" />
+          <GiHeartPlus
+            className="text-xl text-primary-700"
+            aria-hidden="true"
+          />
 
           <span className="font-semibold text-gray-800">
             UpacharKhoj Nepal
