@@ -42,18 +42,22 @@ export const Navbar: React.FC = () => {
   // ─────────────────────────────────────────────
 
   const handleLogout = async () => {
-    await logout();
+    try {
+      await logout();
 
-    toast.success('Logged out successfully');
+      toast.success('Logged out successfully');
 
-    navigate('/');
+      navigate('/');
 
-    setMenuOpen(false);
+      setMenuOpen(false);
+    } catch {
+      toast.error('Logout failed');
+    }
   };
 
 
   // ─────────────────────────────────────────────
-  // NAVIGATION LINKS
+  // NAVIGATION
   // ─────────────────────────────────────────────
 
   const navLinks = [
@@ -61,13 +65,14 @@ export const Navbar: React.FC = () => {
       to: '/',
       label: 'Find Hospital',
     },
+
     {
       to: '/about',
       label: 'About',
     },
 
-    // Only staff/admin/health worker roles need dashboards.
-    // Normal users remain on the public side of the platform.
+    // Normal public users do not have a dashboard.
+    // Health workers / hospital staff / admins do.
     ...(isAuthenticated() && user?.role !== 'user'
       ? [
           {
@@ -102,67 +107,34 @@ export const Navbar: React.FC = () => {
 
         <div className="flex h-16 items-center justify-between">
 
-
-          {/* ─────────────────────────────────────
+          {/* =====================================================
               LOGO
-          ───────────────────────────────────── */}
+          ===================================================== */}
 
           <Link
             to="/"
-            className="
-              flex
-              flex-shrink-0
-              items-center
-              gap-2
-            "
+            className="flex flex-shrink-0 items-center gap-2"
           >
-            <GiHeartPlus
-              className="
-                text-2xl
-                text-primary-700
-              "
-            />
+            <GiHeartPlus className="text-2xl text-primary-700" />
 
             <div>
-              <span
-                className="
-                  block
-                  text-lg
-                  font-bold
-                  leading-tight
-                  text-primary-800
-                "
-              >
+              <span className="block text-lg font-bold leading-tight text-primary-800">
                 UpacharKhoj
               </span>
 
-              <span
-                className="
-                  hidden
-                  text-xs
-                  leading-tight
-                  text-gray-500
-                  sm:block
-                "
-              >
+              <span className="hidden text-xs leading-tight text-gray-500 sm:block">
                 Nepal
               </span>
             </div>
           </Link>
 
 
-          {/* ─────────────────────────────────────
+          {/* =====================================================
               DESKTOP NAVIGATION
-          ───────────────────────────────────── */}
+          ===================================================== */}
 
-          <nav
-            className="
-              hidden
-              items-center
-              gap-8
-              md:flex
-            "
-          >
+          <nav className="hidden items-center gap-8 md:flex">
+
             {navLinks.map((link) => (
               <Link
                 key={`${link.to}-${link.label}`}
@@ -181,24 +153,19 @@ export const Navbar: React.FC = () => {
                 {link.label}
               </Link>
             ))}
+
           </nav>
 
 
-          {/* ─────────────────────────────────────
+          {/* =====================================================
               RIGHT SIDE
-          ───────────────────────────────────── */}
+          ===================================================== */}
 
-          <div
-            className="
-              flex
-              items-center
-              gap-2
-            "
-          >
+          <div className="flex items-center gap-2">
 
             {isAuthenticated() ? (
-              <>
 
+              <>
                 {/* Notifications */}
 
                 <button
@@ -243,17 +210,14 @@ export const Navbar: React.FC = () => {
 
                 {/* User Information */}
 
-                <div
-                  className="
-                    hidden
-                    items-center
-                    gap-2
-                    md:flex
-                  "
-                >
+                <div className="hidden items-center gap-2 md:flex">
 
                   <Link
-                    to={getDashboardPath()}
+                    to={
+                      user?.role === 'user'
+                        ? '/'
+                        : getDashboardPath()
+                    }
                     className="
                       flex
                       items-center
@@ -267,6 +231,9 @@ export const Navbar: React.FC = () => {
                       hover:bg-gray-100
                     "
                   >
+
+                    {/* Avatar */}
+
                     <div
                       className="
                         flex
@@ -287,13 +254,10 @@ export const Navbar: React.FC = () => {
                     </div>
 
 
-                    <div
-                      className="
-                        hidden
-                        text-left
-                        lg:block
-                      "
-                    >
+                    {/* Name + Role */}
+
+                    <div className="hidden text-left lg:block">
+
                       <div
                         className="
                           max-w-[120px]
@@ -307,7 +271,6 @@ export const Navbar: React.FC = () => {
                         {user?.first_name ||
                           user?.username}
                       </div>
-
 
                       <div
                         className="
@@ -323,6 +286,7 @@ export const Navbar: React.FC = () => {
                             ' '
                           )}
                       </div>
+
                     </div>
 
                   </Link>
@@ -348,20 +312,15 @@ export const Navbar: React.FC = () => {
                   </button>
 
                 </div>
-
               </>
+
             ) : (
 
-              /* LOGIN + SIGN UP */
+              /* =================================================
+                  LOGIN + SIGN UP
+              ================================================= */
 
-              <div
-                className="
-                  hidden
-                  items-center
-                  gap-2
-                  md:flex
-                "
-              >
+              <div className="hidden items-center gap-2 md:flex">
 
                 <Link
                   to="/login"
@@ -414,9 +373,9 @@ export const Navbar: React.FC = () => {
             )}
 
 
-            {/* ─────────────────────────────────────
+            {/* =====================================================
                 MOBILE MENU BUTTON
-            ───────────────────────────────────── */}
+            ===================================================== */}
 
             <button
               type="button"
@@ -428,7 +387,7 @@ export const Navbar: React.FC = () => {
                 md:hidden
               "
               onClick={() =>
-                setMenuOpen(!menuOpen)
+                setMenuOpen((current) => !current)
               }
               aria-label="Toggle menu"
             >
@@ -442,11 +401,12 @@ export const Navbar: React.FC = () => {
         </div>
 
 
-        {/* ─────────────────────────────────────
+        {/* =====================================================
             MOBILE MENU
-        ───────────────────────────────────── */}
+        ===================================================== */}
 
         {menuOpen && (
+
           <div
             className="
               space-y-1
@@ -457,7 +417,10 @@ export const Navbar: React.FC = () => {
             "
           >
 
+            {/* Navigation */}
+
             {navLinks.map((link) => (
+
               <Link
                 key={`${link.to}-${link.label}`}
                 to={link.to}
@@ -481,13 +444,17 @@ export const Navbar: React.FC = () => {
               >
                 {link.label}
               </Link>
+
             ))}
 
 
-            {isAuthenticated() ? (
-              <>
+            {/* =================================================
+                AUTHENTICATED MOBILE USER
+            ================================================= */}
 
-                {/* Mobile User */}
+            {isAuthenticated() ? (
+
+              <>
 
                 <div
                   className="
@@ -498,13 +465,23 @@ export const Navbar: React.FC = () => {
                     py-3
                   "
                 >
-                  <div
+
+                  <Link
+                    to={
+                      user?.role === 'user'
+                        ? '/'
+                        : getDashboardPath()
+                    }
+                    onClick={() =>
+                      setMenuOpen(false)
+                    }
                     className="
                       flex
                       items-center
                       gap-2
                     "
                   >
+
                     <div
                       className="
                         flex
@@ -526,6 +503,7 @@ export const Navbar: React.FC = () => {
 
 
                     <div>
+
                       <div
                         className="
                           text-sm
@@ -536,7 +514,6 @@ export const Navbar: React.FC = () => {
                         {user?.first_name ||
                           user?.username}
                       </div>
-
 
                       <div
                         className="
@@ -551,12 +528,15 @@ export const Navbar: React.FC = () => {
                             ' '
                           )}
                       </div>
+
                     </div>
-                  </div>
+
+                  </Link>
+
                 </div>
 
 
-                {/* Mobile Logout */}
+                {/* Logout */}
 
                 <button
                   type="button"
@@ -572,6 +552,7 @@ export const Navbar: React.FC = () => {
                     text-left
                     text-sm
                     text-red-600
+                    transition-colors
                     hover:bg-red-50
                   "
                 >
@@ -581,9 +562,12 @@ export const Navbar: React.FC = () => {
                 </button>
 
               </>
+
             ) : (
 
-              /* MOBILE LOGIN + SIGN UP */
+              /* =================================================
+                  MOBILE LOGIN + REGISTER
+              ================================================= */
 
               <div
                 className="
@@ -648,6 +632,7 @@ export const Navbar: React.FC = () => {
             )}
 
           </div>
+
         )}
 
       </div>
