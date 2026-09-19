@@ -8,28 +8,20 @@ import { Layout } from './components/layout/Layout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
-/* =========================================================
-   PUBLIC PAGES
-========================================================= */
-
+// Public pages
 import { SearchPage } from './pages/public/SearchPage';
 import { HospitalDetailPage } from './pages/public/HospitalDetailPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
 import { AboutPage } from './pages/public/AboutPage';
 
-/* =========================================================
-   HEALTH WORKER
-
+// Health worker pages
 import { HWDashboard } from './pages/healthworker/HWDashboard';
 import { HWReferrals } from './pages/healthworker/HWReferrals';
 import { HWNewReferral } from './pages/healthworker/HWNewReferral';
 import { HWReferralDetail } from './pages/healthworker/HWReferralDetail';
 
-/* =========================================================
-   HOSPITAL ADMIN
-========================================================= */
-
+// Hospital admin pages
 import { HADashboard } from './pages/hospitaladmin/HADashboard';
 import { AvailabilityManagement } from './pages/hospitaladmin/AvailabilityManagement';
 import { SpecialistEquipment } from './pages/hospitaladmin/SpecialistEquipment';
@@ -38,17 +30,13 @@ import { HARefDetail } from './pages/hospitaladmin/HARefDetail';
 import { ReferralHistory } from './pages/hospitaladmin/ReferralHistory';
 import { HospitalProfile } from './pages/hospitaladmin/HospitalProfile';
 
-/* =========================================================
-   SUPER ADMIN
-========================================================= */
-
+// System admin pages
 import { AdminDashboard } from './pages/admin/AdminDashboard';
 import { HospitalManagement } from './pages/admin/HospitalManagement';
 import { AddEditHospital } from './pages/admin/AddEditHospital';
 import { HospitalAdminManagement } from './pages/admin/HospitalAdminManagement';
 import { ServiceManagement } from './pages/admin/ServiceManagement';
 import { Reports } from './pages/admin/Reports';
-
 
 function App() {
   const { loadFromStorage } = useAuthStore();
@@ -67,188 +55,92 @@ function App() {
       />
 
       <Routes>
-
-        {/* =====================================================
-            PUBLIC ROUTES
-        ===================================================== */}
-
+        {/* Public routes */}
         <Route element={<Layout />}>
           <Route path="/" element={<SearchPage />} />
-
-          <Route
-            path="/search"
-            element={<SearchPage />}
-          />
-
-          <Route
-            path="/about"
-            element={<AboutPage />}
-          />
-
-          <Route
-            path="/hospital/:id"
-            element={<HospitalDetailPage />}
-          />
-
-          <Route
-            path="/login"
-            element={<LoginPage />}
-          />
-
-          <Route
-            path="/register"
-            element={<RegisterPage />}
-          />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/hospital/:id" element={<HospitalDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
 
+        {/* Health worker routes */}
+        <Route
+          element={
+            <ProtectedRoute allowedRoles={['health_worker']}>
+              <DashboardLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/hw/dashboard" element={<HWDashboard />} />
+          <Route path="/hw/referrals" element={<HWReferrals />} />
+          <Route path="/hw/referrals/new" element={<HWNewReferral />} />
+          <Route path="/hw/referrals/:id" element={<HWReferralDetail />} />
+        </Route>
 
-        {/* =====================================================
-            HEALTH WORKER ROUTES
-        ===================================================== */}
-
+        {/* Hospital admin and staff routes */}
         <Route
           element={
             <ProtectedRoute
-              allowedRoles={['health_worker']}
+              allowedRoles={['hospital_admin', 'hospital_staff']}
             >
               <DashboardLayout />
             </ProtectedRoute>
           }
         >
-          <Route
-            path="/hw/dashboard"
-            element={<HWDashboard />}
-          />
-
-          <Route
-            path="/hw/referrals"
-            element={<HWReferrals />}
-          />
-
-          <Route
-            path="/hw/referrals/new"
-            element={<HWNewReferral />}
-          />
-
-          <Route
-            path="/hw/referrals/:id"
-            element={<HWReferralDetail />}
-          />
-        </Route>
-
-
-        {/* =====================================================
-            HOSPITAL ADMIN ROUTES
-        ===================================================== */}
-
-        <Route
-          element={
-            <ProtectedRoute
-              allowedRoles={[
-                'hospital_admin',
-                'hospital_staff',
-              ]}
-            >
-              <DashboardLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route
-            path="/hadmin/dashboard"
-            element={<HADashboard />}
-          />
-
+          <Route path="/hadmin/dashboard" element={<HADashboard />} />
           <Route
             path="/hadmin/availability"
             element={<AvailabilityManagement />}
           />
-
           <Route
             path="/hadmin/specialists"
             element={<SpecialistEquipment />}
           />
-
           <Route
             path="/hadmin/referrals"
             element={<IncomingReferrals />}
           />
-
-          <Route
-            path="/hadmin/referrals/:id"
-            element={<HARefDetail />}
-          />
-
+          <Route path="/hadmin/referrals/:id" element={<HARefDetail />} />
           <Route
             path="/hadmin/referral-history"
             element={<ReferralHistory />}
           />
-
-          <Route
-            path="/hadmin/profile"
-            element={<HospitalProfile />}
-          />
+          <Route path="/hadmin/profile" element={<HospitalProfile />} />
         </Route>
 
-
-        {/* =====================================================
-            SUPER ADMIN ROUTES
-        ===================================================== */}
-
+        {/* System admin routes */}
         <Route
           element={
-            <ProtectedRoute
-              allowedRoles={['system_admin']}
-            >
+            <ProtectedRoute allowedRoles={['system_admin']}>
               <DashboardLayout />
             </ProtectedRoute>
           }
         >
-          <Route
-            path="/admin/dashboard"
-            element={<AdminDashboard />}
-          />
-
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route
             path="/admin/hospitals"
             element={<HospitalManagement />}
           />
-
           <Route
             path="/admin/hospitals/new"
             element={<AddEditHospital />}
           />
-
           <Route
             path="/admin/hospitals/:id/edit"
             element={<AddEditHospital />}
           />
-
           <Route
             path="/admin/hospital-admins"
             element={<HospitalAdminManagement />}
           />
-
-          <Route
-            path="/admin/services"
-            element={<ServiceManagement />}
-          />
-
-          <Route
-            path="/admin/reports"
-            element={<Reports />}
-          />
-
-          <Route
-            path="/admin/audit"
-            element={<Reports />}
-          />
+          <Route path="/admin/services" element={<ServiceManagement />} />
+          <Route path="/admin/reports" element={<Reports />} />
+          <Route path="/admin/audit" element={<Reports />} />
         </Route>
 
-
-        {/* =====================================================
-            404 PAGE
-        ===================================================== */}
-
+        {/* Page not found */}
         <Route element={<Layout />}>
           <Route
             path="*"
@@ -274,7 +166,6 @@ function App() {
             }
           />
         </Route>
-
       </Routes>
     </BrowserRouter>
   );
