@@ -10,6 +10,12 @@ import type {
   Referral,
   AuditLog,
   PaginatedResponse,
+  Doctor,
+  PatientRequest,
+  HospitalSearchResponse,
+  UserHospitalDetail,
+  UserDashboardData,
+  SearchSuggestion,
 } from '../types';
 
 
@@ -639,6 +645,113 @@ export const auditApi = {
         params,
       }
     ),
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Doctor Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const doctorsApi = {
+
+  list: (params?: Record<string, string | number>) =>
+    api.get<PaginatedResponse<Doctor>>('/doctors/', { params }),
+
+  get: (id: number) =>
+    api.get<Doctor>(`/doctors/${id}/`),
+
+  create: (data: Partial<Doctor>) =>
+    api.post<Doctor>('/doctors/', data),
+
+  update: (id: number, data: Partial<Doctor>) =>
+    api.patch<Doctor>(`/doctors/${id}/`, data),
+
+  delete: (id: number) =>
+    api.delete(`/doctors/${id}/`),
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Patient Request Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const patientRequestsApi = {
+
+  list: (params?: Record<string, string | number>) =>
+    api.get<PaginatedResponse<PatientRequest>>('/patient-requests/', { params }),
+
+  get: (id: number) =>
+    api.get<PatientRequest>(`/patient-requests/${id}/`),
+
+  create: (data: {
+    destination_hospital: number;
+    service?: number | null;
+    service_name_freetext?: string;
+    contact_phone?: string;
+    patient_age?: number;
+    condition_summary: string;
+    notes?: string;
+  }) =>
+    api.post<PatientRequest>('/patient-requests/', data),
+
+  respond: (id: number, data: { status: string; note?: string }) =>
+    api.patch<PatientRequest>(`/patient-requests/${id}/respond/`, data),
+
+  cancel: (id: number) =>
+    api.post<PatientRequest>(`/patient-requests/${id}/cancel/`),
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Patient Search (Hospital Admin)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PatientSearchResult {
+  id: number;
+  full_name: string;
+  username: string;
+  phone: string;
+  email: string;
+}
+
+export const patientsApi = {
+  /** Fetch all registered patients (no q) or filter by name/phone/username (q ≥ 2 chars) */
+  list: (q?: string) =>
+    api.get<PatientSearchResult[]>('/auth/patients/search/', {
+      params: q ? { q } : undefined,
+    }),
+  /** @deprecated use list() */
+  search: (q: string) =>
+    api.get<PatientSearchResult[]>('/auth/patients/search/', { params: { q } }),
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// User Portal Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const userPortalApi = {
+
+  getDashboard: () =>
+    api.get<UserDashboardData>('/user/dashboard/'),
+
+  searchHospitals: (params: {
+    q?: string;
+    service_id?: number;
+    district?: string;
+    emergency?: boolean;
+    lat?: number;
+    lng?: number;
+    page?: number;
+    page_size?: number;
+  }) =>
+    api.get<HospitalSearchResponse>('/user/hospital-search/', { params }),
+
+  getHospitalDetail: (id: number) =>
+    api.get<UserHospitalDetail>(`/user/hospitals/${id}/`),
+
+  getSearchSuggestions: (q: string) =>
+    api.get<{ suggestions: SearchSuggestion[] }>('/user/search-suggestions/', { params: { q } }),
 };
 
 

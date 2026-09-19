@@ -9,6 +9,9 @@ from apps.hospitals.models import (
     Service,
     HospitalService,
     Availability,
+    Doctor,
+    PatientRequest,
+    PatientRequestEvent,
 )
 
 
@@ -385,3 +388,175 @@ class HospitalProfileWriteSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+
+# ─────────────────────────────────────────────────────────────
+# Doctor Serializers
+# ─────────────────────────────────────────────────────────────
+
+class DoctorSerializer(serializers.ModelSerializer):
+    """Read serializer for Doctor records."""
+
+    duty_status_display = serializers.ReadOnlyField(source='get_duty_status_display')
+    hospital_name = serializers.ReadOnlyField(source='hospital.name')
+
+    class Meta:
+        model = Doctor
+        fields = [
+            'id',
+            'hospital',
+            'hospital_name',
+            'name',
+            'specialty',
+            'qualification',
+            'phone',
+            'duty_status',
+            'duty_status_display',
+            'consultation_days',
+            'consultation_time',
+            'is_active',
+            'updated_at',
+        ]
+        read_only_fields = ['updated_at']
+
+
+class DoctorWriteSerializer(serializers.ModelSerializer):
+    """Write serializer for creating/updating Doctor records (hospital admin)."""
+
+    class Meta:
+        model = Doctor
+        fields = [
+            'hospital',
+            'name',
+            'specialty',
+            'qualification',
+            'phone',
+            'duty_status',
+            'consultation_days',
+            'consultation_time',
+            'is_active',
+        ]
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        if not request:
+            return attrs
+        user = request.user
+        hospital = attrs.get('hospital') or (self.instance.hospital if self.instance else None)
+        if user.role in ('hospital_staff', 'hospital_admin'):
+            if not user.hospital:
+                raise serializers.ValidationError('You are not associated with any hospital.')
+            if hospital and hospital.id != user.hospital_id:
+                raise serializers.ValidationError(
+                    'You can only manage doctors for your own hospital.'
+                )
+        return attrs
+
+    def save(self, **kwargs):
+        request = self.context.get('request')
+        if request:
+            kwargs['updated_by'] = request.user
+        return super().save(**kwargs)
+
+
+# ─────────────────────────────────────────────────────────────
+# PatientRequest Serializers
+# ─────────────────────────────────────────────────────────────
+
+class PatientRequestEventSerializer(serializers.ModelSerializer):
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = PatientRequestEvent
+        fields = ['id', 'actor', 'actor_name', 'old_status', 'new_status', 'note', 'created_at']
+
+    def get_actor_name(self, obj):
+        if obj.actor:
+            return obj.actor.get_full_name() or obj.actor.username
+        return 'System'
+
+
+class PatientRequestSerializer(serializers.ModelSerializer):
+    """Read serializer for PatientRequest."""
+
+    patient_name = serializers.SerializerMethodField()
+    destination_hospital_name = serializers.ReadOnlyField(source='destination_hospital.name')
+    destination_hospital_district = serializers.ReadOnlyField(source='destination_hospital.district')
+    service_name = serializers.SerializerMethodField()
+    status_display = serializers.ReadOnlyField(source='get_status_display')
+    events = PatientRequestEventSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PatientRequest
+        fields = [
+            'id',
+            'request_code',
+            'patient',
+            'patient_name',
+            'destination_hospital',
+            'destination_hospital_name',
+            'destination_hospital_district',
+            'service',
+            'service_name',
+            'service_name_freetext',
+            'contact_phone',
+            'patient_age',
+            'condition_summary',
+            'notes',
+            'status',
+            'status_display',
+            'response_note',
+            'responded_by',
+            'responded_at',
+            'created_at',
+            'updated_at',
+            'events',
+        ]
+        read_only_fields = ['request_code', 'patient', 'created_at', 'updated_at']
+
+    def get_patient_name(self, obj):
+        return obj.patient.get_full_name() or obj.patient.username
+
+    def get_service_name(self, obj):
+        if obj.service:
+            return obj.service.name
+        return obj.service_name_freetext or None
+
+
+class PatientRequestCreateSerializer(serializers.ModelSerializer):
+    """Create serializer for PatientRequest (patient submits)."""
+
+    class Meta:
+        model = PatientRequest
+        fields = [
+            'destination_hospital',
+            'service',
+            'service_name_freetext',
+            'contact_phone',
+            'patient_age',
+            'condition_summary',
+            'notes',
+        ]
+
+    def validate_destination_hospital(self, value):
+        if not value.is_active or value.verification_status != 'verified':
+            raise serializers.ValidationError(
+                'That hospital is not currently accepting requests.'
+            )
+        return value
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        return PatientRequest.objects.create(
+            patient=request.user,
+            **validated_data
+        )
+
+
+class PatientRequestRespondSerializer(serializers.Serializer):
+    """Hospital staff responds to a patient request."""
+
+    STATUS_CHOICES = ['accepted', 'rejected', 'call_required']
+
+    status = serializers.ChoiceField(choices=STATUS_CHOICES)
+    note = serializers.CharField(required=False, allow_blank=True, default='')

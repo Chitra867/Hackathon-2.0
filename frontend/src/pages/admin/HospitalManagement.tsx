@@ -6,39 +6,6 @@ import { hospitalsApi } from '../../lib/api';
 import type { HospitalListItem } from '../../types';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
-const VerificationBadge: React.FC<{ status: string }> = ({ status }) => {
-  const map: Record<string, string> = {
-    verified: 'bg-[#eef3f2] text-[#216d73]',
-    pending: 'bg-[#f2ece0] text-[#8a7350]',
-    rejected: 'bg-[#f6e9e5] text-[#a15b4a]',
-  };
-  return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize ${map[status] ?? 'bg-[#eef1f0] text-[#6b7d79]'}`}>
-      {status}
-    </span>
-  );
-};
-
-// Custom switch instead of the default open-source toggle icon, so it reads
-// as this product's control rather than a generic icon-library pick.
-const StatusSwitch: React.FC<{ active: boolean; disabled: boolean; onClick: () => void }> = ({ active, disabled, onClick }) => (
-  <button
-    onClick={onClick}
-    disabled={disabled}
-    aria-pressed={active}
-    aria-label={active ? 'Deactivate hospital' : 'Activate hospital'}
-    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-150 disabled:opacity-50 ${
-      active ? 'bg-[#216d73]' : 'bg-[#d8ded9]'
-    }`}
-  >
-    <span
-      className={`inline-block h-4.5 w-4.5 h-[18px] w-[18px] transform rounded-full bg-white shadow-sm transition-transform duration-150 ${
-        active ? 'translate-x-[22px]' : 'translate-x-[3px]'
-      }`}
-    />
-  </button>
-);
-
 export const HospitalManagement: React.FC = () => {
   const [hospitals, setHospitals] = useState<HospitalListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,71 +73,42 @@ export const HospitalManagement: React.FC = () => {
       </div>
 
       {loading ? <LoadingSpinner text="Loading hospitals…" /> : (
-        <div className="bg-white border border-[#e5dcc8] rounded-xl overflow-hidden">
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-14 text-center">
-              <div className="w-12 h-12 rounded-full bg-[#eef3f2] flex items-center justify-center mb-3">
-                <FiHome className="text-xl text-[#538b8c]" />
-              </div>
-              <p className="text-sm font-medium text-[#1c3d3f]">No hospitals found</p>
-              <p className="text-xs text-[#8a8078] mt-1">Try a different name or district.</p>
-            </div>
-          ) : (
-            <>
-              {/* Desktop table */}
-              <div className="hidden sm:block overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-[#e5dcc8] bg-[#faf6ee]">
-                      <th className="text-left font-medium text-[#6b7d79] px-4 py-3">Hospital</th>
-                      <th className="text-left font-medium text-[#6b7d79] px-4 py-3 hidden md:table-cell">Type</th>
-                      <th className="text-left font-medium text-[#6b7d79] px-4 py-3">District</th>
-                      <th className="text-left font-medium text-[#6b7d79] px-4 py-3">Verification</th>
-                      <th className="text-left font-medium text-[#6b7d79] px-4 py-3">Active</th>
-                      <th className="text-right font-medium text-[#6b7d79] px-4 py-3">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#f2ece0]">
-                    {filtered.map((h) => (
-                      <tr key={h.id} className="hover:bg-[#faedd7]/40 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="font-medium text-[#1c3d3f]">{h.name}</div>
-                        </td>
-                        <td className="px-4 py-3 text-[#6b7d79] capitalize hidden md:table-cell">{h.type_display || h.type}</td>
-                        <td className="px-4 py-3 text-[#6b7d79]">{h.district}</td>
-                        <td className="px-4 py-3"><VerificationBadge status={h.verification_status} /></td>
-                        <td className="px-4 py-3">
-                          <StatusSwitch active={h.is_active} disabled={toggling === h.id} onClick={() => handleToggle(h)} />
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <Link
-                            to={`/admin/hospitals/${h.id}/edit`}
-                            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#216d73] hover:text-[#184f54] border border-[#e5dcc8] hover:border-[#aabfb9] rounded-lg px-2.5 py-1.5 transition-colors"
-                          >
-                            <FiEdit2 className="text-[11px]" /> Edit
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="sm:hidden divide-y divide-[#f2ece0]">
-                {filtered.map((h) => (
-                  <div key={h.id} className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium text-[#1c3d3f] truncate">{h.name}</div>
-                        <div className="flex items-center gap-1 text-xs text-[#8a8078] mt-0.5">
-                          <FiMapPin className="text-[11px]" /> {h.district} · {h.type_display || h.type}
-                        </div>
-                      </div>
-                      <StatusSwitch active={h.is_active} disabled={toggling === h.id} onClick={() => handleToggle(h)} />
-                    </div>
-                    <div className="flex items-center justify-between mt-3">
-                      <VerificationBadge status={h.verification_status} />
+        <div className="card p-0">
+          <div className="table-container">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Hospital</th>
+                  <th className="hidden sm:table-cell">Type</th>
+                  <th className="hidden md:table-cell">District</th>
+                  <th>Active</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-8 text-gray-500">No hospitals found.</td></tr>
+                ) : filtered.map((h) => (
+                  <tr key={h.id}>
+                    <td>
+                      <div className="font-medium text-gray-900">{h.name}</div>
+                      <div className="text-xs text-gray-500 sm:hidden">{h.type_display} · {h.district}</div>
+                    </td>
+                    <td className="hidden sm:table-cell text-gray-600 capitalize">{h.type_display || h.type}</td>
+                    <td className="hidden md:table-cell text-gray-600">{h.district}</td>
+                    <td>
+                      <button
+                        onClick={() => handleToggle(h)}
+                        disabled={toggling === h.id}
+                        className="p-1 rounded transition-colors"
+                        title={h.is_active ? 'Deactivate' : 'Activate'}
+                      >
+                        {h.is_active
+                          ? <FiToggleRight className="text-2xl text-green-600" />
+                          : <FiToggleLeft className="text-2xl text-gray-400" />}
+                      </button>
+                    </td>
+                    <td>
                       <Link
                         to={`/admin/hospitals/${h.id}/edit`}
                         className="inline-flex items-center gap-1.5 text-xs font-medium text-[#216d73] border border-[#e5dcc8] rounded-lg px-2.5 py-1.5"

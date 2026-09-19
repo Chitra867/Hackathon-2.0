@@ -1,0 +1,95 @@
+/* UpacharKhoj map marker styles — ported from SafeRoute-Nepal */
+
+/* User location — pulsing GPS dot */
+.uk-marker-user {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.uk-user-ring {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(14, 165, 233, 0.25);
+  animation: uk-pulse 2s ease-out infinite;
+}
+.uk-user-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #0ea5e9;
+  border: 2.5px solid white;
+  box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.4);
+  z-index: 1;
+}
+@keyframes uk-pulse {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  70%  { transform: scale(1.9); opacity: 0; }
+  100% { transform: scale(1);   opacity: 0; }
+}
+
+/* Hospital marker */
+.uk-marker-hospital {
+  border: none !important;
+  background: transparent !important;
+  transition: transform 0.15s ease;
+}
+.uk-marker-hospital.is-selected .uk-hospital-body {
+  box-shadow: 0 0 0 4px rgba(14, 165, 233, 0.4), 0 4px 12px rgba(0,0,0,0.22) !important;
+  transform: scale(1.12);
+}
+
+/* Destination pin */
+.uk-marker-pin {
+  border: none !important;
+  background: transparent !important;
+}
+.uk-pin-body {
+  display: block;
+  width: 36px;
+  height: 44px;
+  background: var(--uk-pin, #0ea5e9);
+  clip-path: polygon(50% 100%, 0 38%, 7% 13%, 25% 2%, 75% 2%, 93% 13%, 100% 38%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Popup card — matches SafeRoute style */
+.uk-popup-card {
+  font-family: inherit;
+  padding: 4px 2px;
+  min-width: 180px;
+  max-width: 260px;
+}
+.uk-popup-card h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #172554;
+}
+.uk-popup-card p {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #4b5563;
+}
+.uk-popup-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+/* Route polyline animation (like SafeRoute) */
+@keyframes uk-route-flow {
+  from { stroke-dashoffset: 24; }
+  to   { stroke-dashoffset: 0;  }
+}
+.uk-route-flow {
+  stroke-dasharray: 8 16;
+  animation: uk-route-flow 0.9s linear infinite;
+}

@@ -194,3 +194,223 @@ export interface ApiError {
   message?: string;
   [key: string]: unknown;
 }
+
+// ────────────────────────────────────────────────────────
+// Doctor
+// ────────────────────────────────────────────────────────
+
+export type DoctorDutyStatus = 'on_duty' | 'off_duty' | 'on_leave' | 'unknown';
+
+export interface Doctor {
+  id: number;
+  hospital: number;
+  hospital_name: string;
+  name: string;
+  specialty: string;
+  qualification: string;
+  phone: string;
+  duty_status: DoctorDutyStatus;
+  duty_status_display: string;
+  consultation_days: string;
+  consultation_time: string;
+  is_active: boolean;
+  updated_at: string;
+}
+
+// ────────────────────────────────────────────────────────
+// Patient Request
+// ────────────────────────────────────────────────────────
+
+export type PatientRequestStatus =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'call_required'
+  | 'cancelled';
+
+export interface PatientRequestEvent {
+  id: number;
+  actor: number | null;
+  actor_name: string;
+  old_status: string;
+  new_status: string;
+  note: string;
+  created_at: string;
+}
+
+export interface PatientRequest {
+  id: number;
+  request_code: string;
+  patient: number;
+  patient_name: string;
+  destination_hospital: number;
+  destination_hospital_name: string;
+  destination_hospital_district: string;
+  service: number | null;
+  service_name: string | null;
+  service_name_freetext: string;
+  contact_phone: string;
+  patient_age: number | null;
+  condition_summary: string;
+  notes: string;
+  status: PatientRequestStatus;
+  status_display: string;
+  response_note: string;
+  responded_by: number | null;
+  responded_at: string | null;
+  created_at: string;
+  updated_at: string;
+  events: PatientRequestEvent[];
+}
+
+// ────────────────────────────────────────────────────────
+// User Portal — Hospital Search Result
+// ────────────────────────────────────────────────────────
+
+export interface HospitalSearchResult {
+  id: number;
+  name: string;
+  type: string;
+  type_display: string;
+  address: string;
+  district: string;
+  municipality: string;
+  lat: number | null;
+  lng: number | null;
+  phone: string;
+  emergency_contact: string;
+  distance_km: number | null;
+  services: {
+    id: number;
+    name: string;
+    category: string;
+    is_available: boolean;
+  }[];
+  beds: {
+    status: string;
+    available: number | null;
+    total: number | null;
+    updated_at: string | null;
+  };
+  icu: {
+    status: string;
+    available: number | null;
+    total: number | null;
+    updated_at: string | null;
+  };
+  emergency_dept: {
+    status: string;
+    updated_at: string | null;
+  };
+  on_duty_doctors: { name: string; specialty: string; duty_status: string }[];
+  on_duty_doctors_count: number;
+}
+
+export interface HospitalSearchResponse {
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  results: HospitalSearchResult[];
+}
+
+// ────────────────────────────────────────────────────────
+// User Portal — Search Suggestions
+// ────────────────────────────────────────────────────────
+
+export interface SearchSuggestion {
+  label: string;
+  type: 'hospital' | 'service' | 'specialty' | 'district';
+  id?: number;
+  subtitle?: string;
+}
+
+// ────────────────────────────────────────────────────────
+// User Portal — Hospital Detail
+// ────────────────────────────────────────────────────────
+
+export interface UserHospitalDetail {
+  id: number;
+  name: string;
+  type: string;
+  type_display: string;
+  address: string;
+  district: string;
+  municipality: string;
+  lat: number | null;
+  lng: number | null;
+  phone: string;
+  email: string;
+  website: string;
+  emergency_contact: string;
+  verification_status: string;
+  services: {
+    id: number;
+    name: string;
+    category: string;
+    category_display: string;
+    is_available: boolean;
+    notes: string;
+  }[];
+  availability: {
+    id: number;
+    type: string;
+    type_display: string;
+    status: string;
+    status_display: string;
+    available_count: number | null;
+    total_count: number | null;
+    notes: string;
+    updated_at: string;
+    freshness_label: string;
+    age_minutes: number;
+  }[];
+  doctors: {
+    id: number;
+    name: string;
+    specialty: string;
+    qualification: string;
+    phone: string;
+    duty_status: string;
+    duty_status_display: string;
+    consultation_days: string;
+    consultation_time: string;
+    updated_at: string;
+  }[];
+  my_requests: {
+    id: number;
+    request_code: string;
+    status: string;
+    condition_summary: string;
+    created_at: string;
+    updated_at: string;
+  }[];
+}
+
+// ────────────────────────────────────────────────────────
+// User Dashboard
+// ────────────────────────────────────────────────────────
+
+export interface UserDashboardData {
+  user: {
+    id: number;
+    username: string;
+    full_name: string;
+    email: string;
+  };
+  stats: {
+    total_requests: number;
+    pending_requests: number;
+    active_requests: number;
+  };
+  recent_requests: {
+    id: number;
+    request_code: string;
+    status: string;
+    destination_hospital__name: string;
+    service__name: string | null;
+    created_at: string;
+    updated_at: string;
+  }[];
+}
+

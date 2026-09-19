@@ -20,6 +20,18 @@ from apps.referrals.serializers import (
     ReferralUpdateStatusSerializer,
 )
 from apps.accounts.permissions import IsHealthWorker, IsHospitalStaff
+
+
+class IsHospitalStaffOrHealthWorker(IsHealthWorker):
+    """Allow health_worker OR hospital_admin/hospital_staff/system_admin to create referrals."""
+    message = 'Health worker or hospital admin access required.'
+
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in ('health_worker', 'hospital_admin', 'hospital_staff', 'system_admin')
+        )
 from apps.audit.models import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -67,8 +79,16 @@ class ReferralViewSet(viewsets.ModelViewSet):
 
         if user.role in ('hospital_staff', 'hospital_admin'):
             if user.hospital:
-                # Hospital staff see incoming referrals to their hospital
-                return base_qs.filter(destination_facility=user.hospital)
+                from django.db.models import Q
+                # hospital_admin sees BOTH incoming AND outgoing referrals for their hospital
+                # hospital_staff sees only incoming
+                if user.role == 'hospital_admin':
+                    return base_qs.filter(
+                        Q(destination_facility=user.hospital) |
+                        Q(referring_facility=user.hospital)
+                    ).distinct()
+                else:
+                    return base_qs.filter(destination_facility=user.hospital)
             return base_qs.none()
 
         return base_qs.none()
@@ -86,8 +106,10 @@ class ReferralViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == 'create':
-            return [IsAuthenticated(), IsHealthWorker()]
+            # health_worker AND hospital_admin can create referrals
+            return [IsAuthenticated(), IsHospitalStaffOrHealthWorker()]
         if self.action == 'respond':
+            # hospital_staff, hospital_admin, system_admin can respond
             return [IsAuthenticated(), IsHospitalStaff()]
         return [IsAuthenticated()]
 
@@ -121,13 +143,6 @@ class ReferralViewSet(viewsets.ModelViewSet):
             status=status.HTTP_201_CREATED
         )
 
-    def retrieve(self, request, *args, **kwargs):
-        """Detail view — verify the user has access."""
-        instance = self.get_object()
-        self._check_referral_access(request.user, instance)
-        serializer = ReferralDetailSerializer(instance, context={'request': request})
-        return Response(serializer.data)
-
     def _check_referral_access(self, user, referral):
         """Raise 403 if user has no right to view this referral."""
         if user.role == 'system_admin':
@@ -135,10 +150,20 @@ class ReferralViewSet(viewsets.ModelViewSet):
         if user.role == 'health_worker' and referral.created_by == user:
             return
         if user.role in ('hospital_staff', 'hospital_admin'):
-            if user.hospital and referral.destination_facility_id == user.hospital_id:
+            if user.hospital and (
+                referral.destination_facility_id == user.hospital_id
+                or referral.referring_facility_id == user.hospital_id
+            ):
                 return
         from rest_framework.exceptions import PermissionDenied
         raise PermissionDenied('You do not have permission to view this referral.')
+
+    def retrieve(self, request, *args, **kwargs):
+        """Detail view — verify the user has access."""
+        instance = self.get_object()
+        self._check_referral_access(request.user, instance)
+        serializer = ReferralDetailSerializer(instance, context={'request': request})
+        return Response(serializer.data)
 
     @action(detail=True, methods=['patch'], url_path='respond')
     def respond(self, request, pk=None):
