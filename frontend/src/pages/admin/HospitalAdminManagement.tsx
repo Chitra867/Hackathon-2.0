@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  FiPlus, FiX, FiEdit2, FiToggleLeft, FiToggleRight,
-  FiSearch, FiRefreshCw, FiUser, FiMail, FiPhone, FiLock, FiEye, FiEyeOff,
+  FiPlus, FiX, FiEdit2, FiSearch, FiRefreshCw,
+  FiUser, FiMail, FiPhone, FiLock, FiEye, FiEyeOff, FiUsers,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { usersApi, hospitalsApi } from '../../lib/api';
@@ -27,6 +27,53 @@ const EMPTY_FORM: AdminForm = {
 };
 
 type ModalMode = 'create' | 'edit' | null;
+
+// ─── Shared field chrome ────────────────────────────────────────────────────
+
+const inputClass =
+  'w-full rounded-lg border border-[#e5dcc8] bg-white pl-9 pr-3 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c] transition-colors disabled:bg-[#faf6ee] disabled:text-[#a3988a]';
+
+const IconField: React.FC<{ icon: React.ReactNode; children: React.ReactElement }> = ({ icon, children }) => (
+  <div className="relative">
+    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aabfb9]">{icon}</span>
+    {children}
+  </div>
+);
+
+const Label: React.FC<{ text: string; required?: boolean; hint?: string }> = ({ text, required, hint }) => (
+  <label className="block text-sm font-medium text-[#1c3d3f] mb-1.5">
+    {text} {required && <span className="text-[#a15b4a]">*</span>}
+    {hint && <span className="text-[#a3988a] font-normal text-xs ml-1">{hint}</span>}
+  </label>
+);
+
+const StatusSwitch: React.FC<{ active: boolean; disabled: boolean; onClick: () => void }> = ({ active, disabled, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    aria-pressed={active}
+    aria-label={active ? 'Deactivate user' : 'Activate user'}
+    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-150 disabled:opacity-50 ${
+      active ? 'bg-[#216d73]' : 'bg-[#d8ded9]'
+    }`}
+  >
+    <span
+      className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow-sm transition-transform duration-150 ${
+        active ? 'translate-x-[22px]' : 'translate-x-[3px]'
+      }`}
+    />
+  </button>
+);
+
+const RoleBadge: React.FC<{ role: string }> = ({ role }) => (
+  <span
+    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+      role === 'hospital_admin' ? 'bg-[#eef3f2] text-[#216d73]' : 'bg-[#f2ece0] text-[#8a7350]'
+    }`}
+  >
+    {role === 'hospital_admin' ? 'Admin' : 'Staff'}
+  </span>
+);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -202,24 +249,27 @@ export const HospitalAdminManagement: React.FC = () => {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div>
+    <div className="bg-[#faedd7] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
       {/* ── Page header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="page-title m-0">Hospital Admin Management</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-2xl font-semibold text-[#1c3d3f] m-0">Hospital Admin Management</h1>
+          <p className="text-sm text-[#6b7d79] mt-1">
             Create and manage hospital administrators and staff accounts
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={loadData}
-            className="p-2 text-gray-500 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
+            className="p-2.5 text-[#538b8c] hover:text-[#216d73] bg-white border border-[#e5dcc8] hover:border-[#aabfb9] rounded-lg transition-colors"
             title="Refresh"
           >
             <FiRefreshCw />
           </button>
-          <button onClick={openCreate} className="btn-primary">
+          <button
+            onClick={openCreate}
+            className="inline-flex items-center gap-2 bg-[#216d73] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#184f54] transition-colors shadow-sm"
+          >
             <FiPlus /> Create Admin
           </button>
         </div>
@@ -228,17 +278,17 @@ export const HospitalAdminManagement: React.FC = () => {
       {/* ── Filters ── */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aabfb9]" />
           <input
             type="text"
-            className="input pl-9 w-full"
+            className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-[#e5dcc8] bg-white text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
             placeholder="Search by name, username or email…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
         <select
-          className="input w-full sm:w-44"
+          className="w-full sm:w-44 rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
         >
@@ -252,93 +302,72 @@ export const HospitalAdminManagement: React.FC = () => {
       {loading ? (
         <LoadingSpinner text="Loading users…" />
       ) : (
-        <div className="card p-0">
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>User</th>
-                  <th className="hidden sm:table-cell">Name</th>
-                  <th>Role</th>
-                  <th className="hidden md:table-cell">Hospital</th>
-                  <th className="hidden lg:table-cell">Phone</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-10 text-gray-400">
-                      {search || roleFilter !== 'all'
-                        ? 'No users match your filters.'
-                        : 'No hospital admins yet. Click "Create Admin" to add one.'}
-                    </td>
+        <div className="bg-white border border-[#e5dcc8] rounded-xl overflow-hidden">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-center px-4">
+              <div className="w-12 h-12 rounded-full bg-[#eef3f2] flex items-center justify-center mb-3">
+                <FiUsers className="text-xl text-[#538b8c]" />
+              </div>
+              <p className="text-sm font-medium text-[#1c3d3f]">
+                {search || roleFilter !== 'all' ? 'No users match your filters' : 'No hospital admins yet'}
+              </p>
+              <p className="text-xs text-[#8a8078] mt-1">
+                {search || roleFilter !== 'all' ? 'Try a different search or filter.' : 'Click "Create Admin" to add one.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#e5dcc8] bg-[#faf6ee]">
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3">User</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3 hidden sm:table-cell">Name</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3">Role</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3 hidden md:table-cell">Hospital</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3 hidden lg:table-cell">Phone</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3">Status</th>
+                    <th className="text-right font-medium text-[#6b7d79] px-4 py-3">Actions</th>
                   </tr>
-                ) : (
-                  filtered.map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                </thead>
+                <tbody className="divide-y divide-[#f2ece0]">
+                  {filtered.map((u) => (
+                    <tr key={u.id} className="hover:bg-[#faedd7]/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#216d73] text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
                             {u.username.charAt(0).toUpperCase()}
                           </div>
-                          <div>
-                            <div className="font-medium text-gray-900">{u.username}</div>
-                            <div className="text-xs text-gray-500">{u.email}</div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-[#1c3d3f] truncate">{u.username}</div>
+                            <div className="text-xs text-[#8a8078] truncate">{u.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="hidden sm:table-cell text-gray-700">
+                      <td className="px-4 py-3 text-[#6b7d79] hidden sm:table-cell">
                         {[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}
                       </td>
-                      <td>
-                        <span
-                          className={`badge ${
-                            u.role === 'hospital_admin'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-teal-100 text-teal-700'
-                          }`}
-                        >
-                          {u.role === 'hospital_admin' ? 'Admin' : 'Staff'}
-                        </span>
+                      <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
+                      <td className="px-4 py-3 text-[#6b7d79] hidden md:table-cell">{hospitalName(u.hospital)}</td>
+                      <td className="px-4 py-3 text-[#6b7d79] hidden lg:table-cell">{u.phone || '—'}</td>
+                      <td className="px-4 py-3">
+                        <StatusSwitch active={u.is_active} disabled={toggling === u.id} onClick={() => handleToggle(u)} />
                       </td>
-                      <td className="hidden md:table-cell text-gray-600 text-sm">
-                        {hospitalName(u.hospital)}
-                      </td>
-                      <td className="hidden lg:table-cell text-gray-500 text-sm">
-                        {u.phone || '—'}
-                      </td>
-                      <td>
-                        <button
-                          onClick={() => handleToggle(u)}
-                          disabled={toggling === u.id}
-                          title={u.is_active ? 'Click to deactivate' : 'Click to activate'}
-                          className="p-1 rounded transition-opacity disabled:opacity-50"
-                        >
-                          {u.is_active ? (
-                            <FiToggleRight className="text-2xl text-green-500" />
-                          ) : (
-                            <FiToggleLeft className="text-2xl text-gray-400" />
-                          )}
-                        </button>
-                      </td>
-                      <td>
+                      <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => openEdit(u)}
-                          className="p-1.5 text-gray-500 hover:text-primary-700 hover:bg-primary-50 rounded transition-colors"
+                          className="p-2 text-[#538b8c] hover:text-[#216d73] hover:bg-[#eef3f2] rounded-lg transition-colors"
                           title="Edit user"
                         >
                           <FiEdit2 />
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-400">
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="px-4 py-2.5 border-t border-[#f2ece0] text-xs text-[#8a8078]">
             {filtered.length} of {users.length} users
           </div>
         </div>
@@ -349,20 +378,20 @@ export const HospitalAdminManagement: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-[#1c3d3f]/50 backdrop-blur-sm"
             onClick={closeModal}
           />
 
           {/* Panel */}
           <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-2xl">
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h2 className="text-lg font-semibold text-gray-900">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#f2ece0]">
+              <h2 className="text-lg font-semibold text-[#1c3d3f]">
                 {modalMode === 'create' ? 'Create Hospital Admin / Staff' : 'Edit User'}
               </h2>
               <button
                 onClick={closeModal}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-2 text-[#8a8078] hover:text-[#1c3d3f] hover:bg-[#faf6ee] rounded-lg transition-colors"
                 aria-label="Close"
               >
                 <FiX />
@@ -375,14 +404,11 @@ export const HospitalAdminManagement: React.FC = () => {
               className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto"
             >
               {/* Username — read-only when editing */}
-              <div className="form-group mb-0">
-                <label className="label">
-                  Username {modalMode === 'create' && <span className="text-red-500">*</span>}
-                </label>
-                <div className="relative">
-                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div>
+                <Label text="Username" required={modalMode === 'create'} />
+                <IconField icon={<FiUser />}>
                   <input
-                    className="input pl-9 disabled:bg-gray-50 disabled:text-gray-500"
+                    className={inputClass}
                     placeholder="e.g. bir_hospital_admin"
                     value={form.username}
                     onChange={(e) => setField('username', e.target.value)}
@@ -390,27 +416,27 @@ export const HospitalAdminManagement: React.FC = () => {
                     disabled={modalMode === 'edit'}
                     autoComplete="off"
                   />
-                </div>
+                </IconField>
                 {modalMode === 'edit' && (
-                  <p className="text-xs text-gray-400 mt-0.5">Username cannot be changed.</p>
+                  <p className="text-xs text-[#a3988a] mt-1">Username cannot be changed.</p>
                 )}
               </div>
 
               {/* Name row */}
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="form-group mb-0">
-                  <label className="label">First Name</label>
+                <div>
+                  <Label text="First Name" />
                   <input
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     placeholder="Sita"
                     value={form.first_name}
                     onChange={(e) => setField('first_name', e.target.value)}
                   />
                 </div>
-                <div className="form-group mb-0">
-                  <label className="label">Last Name</label>
+                <div>
+                  <Label text="Last Name" />
                   <input
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     placeholder="Rai"
                     value={form.last_name}
                     onChange={(e) => setField('last_name', e.target.value)}
@@ -419,44 +445,40 @@ export const HospitalAdminManagement: React.FC = () => {
               </div>
 
               {/* Email */}
-              <div className="form-group mb-0">
-                <label className="label">Email Address</label>
-                <div className="relative">
-                  <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div>
+                <Label text="Email Address" />
+                <IconField icon={<FiMail />}>
                   <input
                     type="email"
-                    className="input pl-9"
+                    className={inputClass}
                     placeholder="admin@hospital.np"
                     value={form.email}
                     onChange={(e) => setField('email', e.target.value)}
                     autoComplete="off"
                   />
-                </div>
+                </IconField>
               </div>
 
               {/* Phone */}
-              <div className="form-group mb-0">
-                <label className="label">Phone</label>
-                <div className="relative">
-                  <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <div>
+                <Label text="Phone" />
+                <IconField icon={<FiPhone />}>
                   <input
                     type="tel"
-                    className="input pl-9"
+                    className={inputClass}
                     placeholder="98XXXXXXXX"
                     value={form.phone}
                     onChange={(e) => setField('phone', e.target.value)}
                   />
-                </div>
+                </IconField>
               </div>
 
               {/* Role & Hospital row */}
               <div className="grid sm:grid-cols-2 gap-4">
-                <div className="form-group mb-0">
-                  <label className="label">
-                    Role <span className="text-red-500">*</span>
-                  </label>
+                <div>
+                  <Label text="Role" required />
                   <select
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     value={form.role}
                     onChange={(e) => setField('role', e.target.value)}
                     required
@@ -465,12 +487,10 @@ export const HospitalAdminManagement: React.FC = () => {
                     <option value="hospital_staff">Hospital Staff</option>
                   </select>
                 </div>
-                <div className="form-group mb-0">
-                  <label className="label">
-                    Hospital <span className="text-red-500">*</span>
-                  </label>
+                <div>
+                  <Label text="Hospital" required />
                   <select
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     value={form.hospital}
                     onChange={(e) => setField('hospital', e.target.value)}
                     required
@@ -486,20 +506,17 @@ export const HospitalAdminManagement: React.FC = () => {
               </div>
 
               {/* Password */}
-              <div className="form-group mb-0">
-                <label className="label">
-                  Password{' '}
-                  {modalMode === 'create' ? (
-                    <span className="text-red-500">*</span>
-                  ) : (
-                    <span className="text-gray-400 font-normal text-xs">(leave blank to keep current)</span>
-                  )}
-                </label>
+              <div>
+                <Label
+                  text="Password"
+                  required={modalMode === 'create'}
+                  hint={modalMode === 'edit' ? '(leave blank to keep current)' : undefined}
+                />
                 <div className="relative">
-                  <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aabfb9]"><FiLock /></span>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    className="input pl-9 pr-10"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white pl-9 pr-10 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     placeholder={modalMode === 'create' ? 'Min 8 characters' : 'New password (optional)'}
                     value={form.password}
                     onChange={(e) => setField('password', e.target.value)}
@@ -508,7 +525,7 @@ export const HospitalAdminManagement: React.FC = () => {
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aabfb9] hover:text-[#538b8c]"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
@@ -518,10 +535,10 @@ export const HospitalAdminManagement: React.FC = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-3 pt-2 border-t border-gray-100">
+              <div className="flex gap-3 pt-3 border-t border-[#f2ece0]">
                 <button
                   type="submit"
-                  className="btn-primary flex-1 justify-center"
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-[#216d73] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#184f54] disabled:opacity-60 transition-colors"
                   disabled={saving}
                 >
                   {saving ? (
@@ -538,7 +555,7 @@ export const HospitalAdminManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="btn-secondary"
+                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-[#1c3d3f] border border-[#e5dcc8] hover:bg-[#faf6ee] transition-colors"
                   disabled={saving}
                 >
                   Cancel
