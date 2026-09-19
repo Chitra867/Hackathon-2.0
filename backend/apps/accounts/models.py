@@ -14,7 +14,7 @@ class User(AbstractUser):
     """
 
     ROLES = [
-        ('patient', 'Patient/Family'),
+        ('user', 'User'),
         ('health_worker', 'Health Worker'),
         ('hospital_staff', 'Hospital Staff'),
         ('hospital_admin', 'Hospital Admin'),
@@ -24,7 +24,7 @@ class User(AbstractUser):
     role = models.CharField(
         max_length=20,
         choices=ROLES,
-        default='health_worker',
+        default='user',
         verbose_name='Role'
     )
     hospital = models.ForeignKey(
@@ -57,6 +57,10 @@ class User(AbstractUser):
     @property
     def full_name(self):
         return self.get_full_name() or self.username
+
+    @property
+    def is_normal_user(self):
+        return self.role == 'user'
 
     @property
     def is_system_admin(self):

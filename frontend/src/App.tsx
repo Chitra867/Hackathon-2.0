@@ -1,5 +1,13 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Link,
+} from 'react-router-dom';
+
 import { Toaster } from 'react-hot-toast';
 
 import { useAuthStore } from './store/authStore';
@@ -7,6 +15,7 @@ import { useAuthStore } from './store/authStore';
 import { Layout } from './components/layout/Layout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
+
 
 /* =========================================================
    PUBLIC PAGES
@@ -18,13 +27,16 @@ import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
 import { AboutPage } from './pages/public/AboutPage';
 
+
 /* =========================================================
    HEALTH WORKER
+========================================================= */
 
 import { HWDashboard } from './pages/healthworker/HWDashboard';
 import { HWReferrals } from './pages/healthworker/HWReferrals';
 import { HWNewReferral } from './pages/healthworker/HWNewReferral';
 import { HWReferralDetail } from './pages/healthworker/HWReferralDetail';
+
 
 /* =========================================================
    HOSPITAL ADMIN
@@ -37,6 +49,7 @@ import { IncomingReferrals } from './pages/hospitaladmin/IncomingReferrals';
 import { HARefDetail } from './pages/hospitaladmin/HARefDetail';
 import { ReferralHistory } from './pages/hospitaladmin/ReferralHistory';
 import { HospitalProfile } from './pages/hospitaladmin/HospitalProfile';
+
 
 /* =========================================================
    SUPER ADMIN
@@ -59,12 +72,18 @@ function App() {
 
   return (
     <BrowserRouter>
+
+      {/* =====================================================
+          TOAST NOTIFICATIONS
+      ===================================================== */}
+
       <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
         }}
       />
+
 
       <Routes>
 
@@ -73,32 +92,101 @@ function App() {
         ===================================================== */}
 
         <Route element={<Layout />}>
-          <Route path="/" element={<SearchPage />} />
+
+          {/* Home / Hospital Search */}
+
+          <Route
+            path="/"
+            element={<SearchPage />}
+          />
+
+
+          {/* Old search URL redirects to home */}
 
           <Route
             path="/search"
-            element={<SearchPage />}
+            element={
+              <Navigate
+                to="/"
+                replace
+              />
+            }
           />
+
+
+          {/* About */}
 
           <Route
             path="/about"
             element={<AboutPage />}
           />
 
+
+          {/* Hospital Details */}
+
           <Route
             path="/hospital/:id"
             element={<HospitalDetailPage />}
           />
+
+
+          {/* Login */}
 
           <Route
             path="/login"
             element={<LoginPage />}
           />
 
+
+          {/* Registration */}
+
           <Route
             path="/register"
             element={<RegisterPage />}
           />
+
+
+          {/* =====================================================
+              404 PAGE
+          ===================================================== */}
+
+          <Route
+            path="*"
+            element={
+              <div className="flex min-h-[60vh] items-center justify-center">
+                <div className="text-center">
+
+                  <h1 className="text-5xl font-bold text-[#172554]">
+                    404
+                  </h1>
+
+                  <p className="mt-3 text-gray-500">
+                    Page not found
+                  </p>
+
+                  <Link
+                    to="/"
+                    className="
+                      mt-5
+                      inline-block
+                      rounded-lg
+                      bg-primary-700
+                      px-5
+                      py-2.5
+                      text-sm
+                      font-medium
+                      text-white
+                      hover:bg-primary-800
+                    "
+                  >
+                    Go Home
+                  </Link>
+
+                </div>
+              </div>
+            }
+          />
+
         </Route>
 
 
@@ -115,6 +203,7 @@ function App() {
             </ProtectedRoute>
           }
         >
+
           <Route
             path="/hw/dashboard"
             element={<HWDashboard />}
@@ -134,6 +223,7 @@ function App() {
             path="/hw/referrals/:id"
             element={<HWReferralDetail />}
           />
+
         </Route>
 
 
@@ -153,6 +243,7 @@ function App() {
             </ProtectedRoute>
           }
         >
+
           <Route
             path="/hadmin/dashboard"
             element={<HADashboard />}
@@ -187,6 +278,7 @@ function App() {
             path="/hadmin/profile"
             element={<HospitalProfile />}
           />
+
         </Route>
 
 
@@ -203,6 +295,7 @@ function App() {
             </ProtectedRoute>
           }
         >
+
           <Route
             path="/admin/dashboard"
             element={<AdminDashboard />}
@@ -242,40 +335,11 @@ function App() {
             path="/admin/audit"
             element={<Reports />}
           />
-        </Route>
 
-
-        {/* =====================================================
-            404 PAGE
-        ===================================================== */}
-
-        <Route element={<Layout />}>
-          <Route
-            path="*"
-            element={
-              <div className="flex min-h-[60vh] items-center justify-center">
-                <div className="text-center">
-                  <h1 className="text-5xl font-bold text-[#172554]">
-                    404
-                  </h1>
-
-                  <p className="mt-3 text-gray-500">
-                    Page not found
-                  </p>
-
-                  <a
-                    href="/"
-                    className="mt-5 inline-block rounded-lg bg-primary-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-800"
-                  >
-                    Go Home
-                  </a>
-                </div>
-              </div>
-            }
-          />
         </Route>
 
       </Routes>
+
     </BrowserRouter>
   );
 }
