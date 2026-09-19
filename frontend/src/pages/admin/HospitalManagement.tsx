@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { FiPlus, FiSearch, FiEdit2, FiToggleLeft, FiToggleRight } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiEdit2, FiHome, FiMapPin } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { hospitalsApi } from '../../lib/api';
 import type { HospitalListItem } from '../../types';
@@ -42,28 +42,34 @@ export const HospitalManagement: React.FC = () => {
   });
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-[#faedd7] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
+      <div className="flex items-start sm:items-center justify-between gap-4 mb-6 flex-col sm:flex-row">
         <div>
-          <h1 className="page-title m-0">Hospital Management</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage all registered healthcare facilities</p>
+          <h1 className="text-2xl font-semibold text-[#1c3d3f] m-0">Hospital Management</h1>
+          <p className="text-sm text-[#6b7d79] mt-1">Manage all registered healthcare facilities</p>
         </div>
-        <Link to="/admin/hospitals/new" className="btn-primary">
+        <Link
+          to="/admin/hospitals/new"
+          className="inline-flex items-center gap-2 bg-[#216d73] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#184f54] transition-colors shadow-sm"
+        >
           <FiPlus /> Add Hospital
         </Link>
       </div>
 
-      <div className="card mb-4">
-        <div className="relative">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      <div className="flex items-center justify-between gap-4 mb-4 flex-col sm:flex-row">
+        <div className="relative w-full sm:max-w-sm">
+          <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aabfb9]" />
           <input
             type="text"
-            className="input pl-9"
+            className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-[#e5dcc8] bg-white text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
             placeholder="Search by hospital name or district…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <span className="text-xs text-[#8a8078] whitespace-nowrap">
+          {filtered.length} of {hospitals.length} hospitals
+        </span>
       </div>
 
       {loading ? <LoadingSpinner text="Loading hospitals…" /> : (
@@ -105,19 +111,16 @@ export const HospitalManagement: React.FC = () => {
                     <td>
                       <Link
                         to={`/admin/hospitals/${h.id}/edit`}
-                        className="btn-secondary btn-sm text-xs"
+                        className="inline-flex items-center gap-1.5 text-xs font-medium text-[#216d73] border border-[#e5dcc8] rounded-lg px-2.5 py-1.5"
                       >
-                        <FiEdit2 /> Edit
+                        <FiEdit2 className="text-[11px]" /> Edit
                       </Link>
-                    </td>
-                  </tr>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="px-4 py-2 border-t border-gray-100 text-xs text-gray-500">
-            Showing {filtered.length} of {hospitals.length} hospitals
-          </div>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

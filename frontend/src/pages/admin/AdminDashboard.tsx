@@ -1,18 +1,182 @@
-import React, { useEffect, useState } from 'react';
+import React, {
+  useEffect,
+  useState,
+} from 'react';
+
 import { Link } from 'react-router-dom';
+
 import {
   FiHome, FiUsers, FiFileText, FiSettings, FiCheckCircle, FiAlertCircle,
-  FiLogIn, FiLogOut, FiActivity,
+  FiLogIn, FiLogOut, FiActivity, FiArrowRight,
 } from 'react-icons/fi';
-import { hospitalsApi, usersApi, auditApi } from '../../lib/api';
+
+import {
+  format,
+  isValid,
+} from 'date-fns';
+
+import {
+  hospitalsApi,
+  usersApi,
+  auditApi,
+} from '../../lib/api';
+
 import type { AuditLog } from '../../types';
+
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
-import { format } from 'date-fns';
+
+// --------------------------------------------------
+// TYPES
+// --------------------------------------------------
+
+interface DashboardStats {
+  totalHospitals: number | null;
+  activeHospitals: number | null;
+  pendingHospitals: number | null;
+  totalUsers: number | null;
+}
+
+
+// --------------------------------------------------
+// CONSTANTS
+// --------------------------------------------------
+
+const INITIAL_STATS: DashboardStats = {
+  totalHospitals: null,
+  activeHospitals: null,
+  pendingHospitals: null,
+  totalUsers: null,
+};
+
+
+
+// --------------------------------------------------
+// HELPER FUNCTIONS
+// --------------------------------------------------
+
+const safeText = (value: unknown): string => {
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number'
+  ) {
+    return String(value);
+  }
+
+  return '';
+};
+
+// --------------------------------------------------
+// SAFE DATE FORMAT
+// --------------------------------------------------
+
+const formatActivityDate = (
+  value: unknown,
+): string => {
+  if (
+    typeof value !== 'string' &&
+    typeof value !== 'number'
+  ) {
+    return 'Date unavailable';
+  }
+
+  const date = new Date(value);
+
+  if (!isValid(date)) {
+    return 'Date unavailable';
+  }
+
+  try {
+    return format(
+      date,
+      'MMM d, HH:mm',
+    );
+  } catch {
+    return 'Date unavailable';
+  }
+};
+
+// --------------------------------------------------
+// ACTIVITY ICON STYLES
+// --------------------------------------------------
+
+const getActivityStyle = (
+  log: AuditLog,
+) => {
+  const actionCode = safeText(
+    (log as AuditLog & { action?: string }).action,
+  );
+
+  const actionDisplay = safeText(
+    log.action_display,
+  );
+
+  const action = (
+    actionCode ||
+    actionDisplay
+  ).toLowerCase();
+
+  if (
+    action.includes('logout') ||
+    action.includes('log_out')
+  ) {
+    return {
+      icon: <FiLogOut />,
+      bg: 'bg-[#f1e4cf]',
+      color: 'text-[#a9702f]',
+    };
+  }
+
+  if (
+    action.includes('login') ||
+    action.includes('log_in')
+  ) {
+    return {
+      icon: <FiLogIn />,
+      bg: 'bg-[#e4ead3]',
+      color: 'text-[#5c7a3a]',
+    };
+  }
+
+  if (
+    action.includes('hospital') ||
+    action.includes('verification')
+  ) {
+    return {
+      icon: <FiHome />,
+      bg: 'bg-[#f6e3c4]',
+      color: 'text-[#b9761e]',
+    };
+  }
+
+  return {
+    icon: <FiActivity />,
+    bg: 'bg-[#ebdcec]',
+    color: 'text-[#7a4f85]',
+  };
+};
+
+// --------------------------------------------------
+// ADMIN DASHBOARD
+// --------------------------------------------------
 
 export const AdminDashboard: React.FC = () => {
-  const [stats, setStats] = useState({ totalHospitals: 0, activeHospitals: 0, totalUsers: 0, pendingHospitals: 0 });
-  const [recentActivity, setRecentActivity] = useState<AuditLog[]>([]);
+  // ------------------------------------------------
+  // STATE
+  // ------------------------------------------------
+
+  const [stats, setStats] = useState<DashboardStats>(
+    INITIAL_STATS,
+  );
+
+  const [
+    recentActivity,
+    setRecentActivity,
+  ] = useState<AuditLog[]>([]);
+
   const [loading, setLoading] = useState(true);
+
+  // LOAD DASHBOARD DATA
+  // ------------------------------------------------
 
   useEffect(() => {
     Promise.all([
@@ -28,43 +192,62 @@ export const AdminDashboard: React.FC = () => {
         pendingHospitals: hospitals.filter((h) => h.verification_status === 'pending').length,
       });
       setRecentActivity(auditRes.data.results);
-    }).catch(() => {}).finally(() => setLoading(false));
+    }).catch((error) => {
+      console.error('Failed to load dashboard data:', error);
+    }).finally(() => setLoading(false));
   }, []);
 
-  // Warm palette built on #ede0ce — brown / olive / ochre / plum, all one family.
+  // One teal family, not four unrelated hues — active/good state gets the
+  // deepest teal so it reads as the "headline" number on the row.
   const statCards = [
-    { label: 'Total Hospitals', value: stats.totalHospitals, icon: <FiHome />, bg: 'bg-[#f1e4cf]', ring: 'ring-[#e2cda3]', color: 'text-[#8b5a2b]', link: '/admin/hospitals' },
-    { label: 'Active Hospitals', value: stats.activeHospitals, icon: <FiCheckCircle />, bg: 'bg-[#e4ead3]', ring: 'ring-[#c9d6a8]', color: 'text-[#5c7a3a]', link: '/admin/hospitals' },
-    { label: 'Pending Verification', value: stats.pendingHospitals, icon: <FiAlertCircle />, bg: 'bg-[#f6e3c4]', ring: 'ring-[#ecc98a]', color: 'text-[#b9761e]', link: '/admin/hospitals' },
-    { label: 'Total Users', value: stats.totalUsers, icon: <FiUsers />, bg: 'bg-[#ebdcec]', ring: 'ring-[#d5b9d8]', color: 'text-[#7a4f85]', link: '/admin/hospital-admins' },
+    { label: 'Total Hospitals', value: stats.totalHospitals, icon: <FiHome />, bg: 'bg-[#eef3f2]', color: 'text-[#538b8c]', link: '/admin/hospitals' },
+    { label: 'Active Hospitals', value: stats.activeHospitals, icon: <FiCheckCircle />, bg: 'bg-[#216d73]', color: 'text-white', link: '/admin/hospitals', emphasis: true },
+    { label: 'Pending Verification', value: stats.pendingHospitals, icon: <FiAlertCircle />, bg: 'bg-[#f2ece0]', color: 'text-[#8a8078]', link: '/admin/hospitals' },
+    { label: 'Total Users', value: stats.totalUsers, icon: <FiUsers />, bg: 'bg-[#eef3f2]', color: 'text-[#538b8c]', link: '/admin/hospital-admins' },
   ];
+
+  // ------------------------------------------------
+  // QUICK ACTIONS
+  // ------------------------------------------------
 
   const quickLinks = [
-    { to: '/admin/hospitals/new', icon: <FiHome />, label: 'Add Hospital', desc: 'Register a new facility' },
-    { to: '/admin/hospital-admins', icon: <FiUsers />, label: 'Manage Admins', desc: 'Assign hospital administrators' },
-    { to: '/admin/services', icon: <FiSettings />, label: 'Services', desc: 'Manage medical service types' },
-    { to: '/admin/reports', icon: <FiFileText />, label: 'Reports', desc: 'View referral statistics' },
+    {
+      to: '/admin/hospitals/new',
+      icon: <FiHome />,
+      label: 'Add Hospital',
+      desc: 'Register a new facility',
+    },
+
+    {
+      to: '/admin/hospital-admins',
+      icon: <FiUsers />,
+      label: 'Manage Admins',
+      desc: 'Assign hospital administrators',
+    },
+
+    {
+      to: '/admin/services',
+      icon: <FiSettings />,
+      label: 'Services',
+      desc: 'Manage medical service types',
+    },
+
+    {
+      to: '/admin/reports',
+      icon: <FiFileText />,
+      label: 'Reports',
+      desc: 'View referral statistics',
+    },
   ];
 
-  // Give each activity a distinct icon + tint based on what actually happened,
-  // instead of one flat gray dot for every row.
-  const activityStyle = (log: AuditLog) => {
-    const action = (log.action_display || '').toLowerCase();
-    if (action.includes('login')) {
-      return { icon: <FiLogIn />, bg: 'bg-[#e4ead3]', color: 'text-[#5c7a3a]' };
-    }
-    if (action.includes('logout')) {
-      return { icon: <FiLogOut />, bg: 'bg-[#f1e4cf]', color: 'text-[#a9702f]' };
-    }
-    return { icon: <FiActivity />, bg: 'bg-[#ebdcec]', color: 'text-[#7a4f85]' };
-  };
+
 
   if (loading) return <LoadingSpinner text="Loading dashboard…" />;
 
   return (
-    <div className="bg-[#faf6ee] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
-      <h1 className="page-title text-[#3d2f1c]">Super Admin Dashboard</h1>
-      <p className="text-sm text-[#8a7a63] mb-6">System-wide overview of UpacharKhoj Nepal</p>
+    <div className="bg-[#faedd7] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
+      <h1 className="text-2xl font-semibold text-[#1c3d3f]">Super Admin Dashboard</h1>
+      <p className="text-sm text-[#6b7d79] mb-6">System-wide overview of UpacharKhoj Nepal</p>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -72,78 +255,129 @@ export const AdminDashboard: React.FC = () => {
           <Link
             key={s.label}
             to={s.link}
-            className="stat-card bg-white border border-[#ede0ce] hover:shadow-lg hover:-translate-y-0.5 hover:border-[#d9c39e] transition-all duration-200"
+            className={`group flex items-center gap-4 rounded-xl border p-4 transition-all duration-150 hover:-translate-y-0.5 ${
+              s.emphasis
+                ? 'bg-[#216d73] border-[#216d73] shadow-md shadow-[#216d73]/20 hover:shadow-lg hover:shadow-[#216d73]/25'
+                : 'bg-white border-[#e5dcc8] hover:border-[#aabfb9] hover:shadow-md'
+            }`}
           >
-            <div className={`stat-icon ${s.bg} ring-1 ${s.ring}`}>
-              <span className={`text-xl ${s.color}`}>{s.icon}</span>
+            <div className={`w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 ${s.bg}`}>
+              <span className={`text-lg ${s.color}`}>{s.icon}</span>
             </div>
+
+            {/* STAT VALUE */}
+
             <div>
-              <div className="text-2xl font-bold text-[#3d2f1c]">{s.value}</div>
-              <div className="text-xs text-[#8a7a63]">{s.label}</div>
+              <div className={`text-2xl font-bold ${s.emphasis ? 'text-white' : 'text-[#1c3d3f]'}`}>{s.value}</div>
+              <div className={`text-xs ${s.emphasis ? 'text-[#cfe3e1]' : 'text-[#8a8078]'}`}>{s.label}</div>
             </div>
+
           </Link>
+
         ))}
+
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
-        <div className="card bg-white border border-[#ede0ce]">
+        <div className="bg-white border border-[#e5dcc8] rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="section-title m-0 text-[#3d2f1c]">Recent System Activity</h2>
-            <Link to="/admin/reports" className="text-sm font-medium text-[#8b5a2b] hover:text-[#6b4520] hover:underline">
-              View all
+            <h2 className="text-base font-semibold text-[#1c3d3f] m-0">Recent System Activity</h2>
+            <Link
+              to="/admin/reports"
+              className="inline-flex items-center gap-1 text-sm font-medium text-[#216d73] hover:text-[#184f54]"
+            >
+              View all <FiArrowRight className="text-xs" />
             </Link>
           </div>
           {recentActivity.length === 0 ? (
-            <p className="text-sm text-[#8a7a63] py-8 text-center">No activity recorded yet.</p>
+            <p className="text-sm text-[#8a8078] py-8 text-center">No activity recorded yet.</p>
           ) : (
-            <ul className="divide-y divide-[#f2e9d9]">
+            <ul className="divide-y divide-[#f2ece0]">
               {recentActivity.map((log) => {
-                const style = activityStyle(log);
+
+                const style =
+                  getActivityStyle(log);
+
+                const description =
+                  safeText(log.description) ||
+                  'System activity recorded';
+
+                const actionLabel =
+                  safeText(log.action_display) ||
+                  'Activity';
+
                 return (
-                  <li key={log.id} className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className={`w-9 h-9 rounded-full ${style.bg} flex items-center justify-center flex-shrink-0 ${style.color}`}>
-                      <span className="text-sm">{style.icon}</span>
+
+                  <li
+                    key={log.id}
+                    className="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+
+                    {/* ACTIVITY ICON */}
+
+                    <div
+                      className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${style.bg} ${style.color}`}
+                    >
+                      <span className="text-sm">
+                        {style.icon}
+                      </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-[#3d2f1c] truncate">{log.description}</p>
+                      <p className="text-sm text-[#1c3d3f] truncate">{description}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-xs text-[#a89a82]">
-                          {format(new Date(log.created_at), 'MMM d, HH:mm')}
+                        <span className="text-xs text-[#a3988a]">
+                          {formatActivityDate(log.created_at)}
                         </span>
-                        <span className="text-[#d9c9ac]">·</span>
-                        <span className={`text-xs font-medium ${style.color}`}>{log.action_display}</span>
+                        <span className="text-[#d8cdb8]">·</span>
+                        <span className={`text-xs font-medium ${style.color}`}>{actionLabel}</span>
                       </div>
+
                     </div>
+
                   </li>
+
                 );
               })}
+
             </ul>
+
           )}
+
         </div>
 
         {/* Quick Actions */}
-        <div className="card bg-white border border-[#ede0ce]">
-          <h2 className="section-title text-[#3d2f1c]">Quick Actions</h2>
+        <div className="bg-white border border-[#e5dcc8] rounded-xl p-5">
+          <h2 className="text-base font-semibold text-[#1c3d3f] mb-4">Quick Actions</h2>
           <div className="grid grid-cols-2 gap-3">
-            {quickLinks.map((l) => (
+
+            {quickLinks.map((link) => (
+
               <Link
-                key={l.to}
-                to={l.to}
-                className="flex items-center gap-3 p-3 rounded-lg border border-[#ede0ce] hover:bg-[#faf1e0] hover:border-[#d9c39e] transition-colors"
+                key={link.to}
+                to={link.to}
+                className="flex items-center gap-3 p-3 rounded-lg border border-[#e5dcc8] hover:bg-[#faedd7]/60 hover:border-[#aabfb9] transition-colors"
               >
-                <div className="w-9 h-9 bg-[#f1e4cf] text-[#8b5a2b] rounded-lg flex items-center justify-center flex-shrink-0">
-                  {l.icon}
+                <div className="w-9 h-9 bg-[#eef3f2] text-[#216d73] rounded-lg flex items-center justify-center flex-shrink-0">
+                  {link.icon}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-[#3d2f1c]">{l.label}</div>
-                  <div className="text-xs text-[#8a7a63]">{l.desc}</div>
+                  <div className="text-sm font-semibold text-[#1c3d3f]">{link.label}</div>
+                  <div className="text-xs text-[#8a8078]">{link.desc}</div>
                 </div>
+
               </Link>
+
             ))}
+
           </div>
+
         </div>
+
       </div>
+
     </div>
   );
 };
+
+export default AdminDashboard;
