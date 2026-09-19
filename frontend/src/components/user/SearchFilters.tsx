@@ -29,6 +29,7 @@ interface Props {
   filters: SearchFiltersState;
   onChange: (filters: SearchFiltersState) => void;
   onSearch: () => void;
+  onSuggestionSelect?: (suggestion: SearchSuggestion) => void;
   loading?: boolean;
 }
 
@@ -52,7 +53,7 @@ function typeLabel(type: SearchSuggestion['type']) {
   }
 }
 
-export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, loading }) => {
+export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, onSuggestionSelect, loading }) => {
   const set = (partial: Partial<SearchFiltersState>) =>
     onChange({ ...filters, ...partial });
 
@@ -92,8 +93,11 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, lo
     set({ q: suggestion.label });
     setSuggestions([]);
     setShowDropdown(false);
-    // Trigger search after state update
-    setTimeout(() => onSearch(), 0);
+    if (onSuggestionSelect) {
+      onSuggestionSelect(suggestion);
+    } else {
+      setTimeout(() => onSearch(), 0);
+    }
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {

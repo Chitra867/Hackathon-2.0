@@ -1,1392 +1,548 @@
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
-
 import {
-  FiPhone,
-  FiSearch,
-  FiRefreshCw,
+  FiSearch, FiRefreshCw, FiPhone, FiCheck, FiX, FiEye,
+  FiChevronDown, FiChevronUp, FiAlertTriangle,
+  FiClock, FiUser,
 } from 'react-icons/fi';
-
 import toast from 'react-hot-toast';
-
-import { format, isValid } from 'date-fns';
-
-import {
-  referralsApi,
-  hospitalsApi,
-  patientRequestsApi,
-} from '../../lib/api';
-
-import type {
-  Referral,
-  ReferralStatus,
-  PatientRequest,
-  PatientRequestStatus,
-} from '../../types';
-
+import { format } from 'date-fns';
+import { referralsApi, patientRequestsApi } from '../../lib/api';
+import type { Referral, ReferralStatus, PatientRequest, PatientRequestStatus } from '../../types';
 import { ReferralStatusBadge } from '../../components/common/ReferralStatusBadge';
-
+import { PatientRequestStatusBadge } from '../../components/user/PatientRequestStatusBadge';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
-
 import { useAuthStore } from '../../store/authStore';
 
-// --------------------------------------------------
-// CONSTANTS
-// --------------------------------------------------
-
-const PAGE_SIZE = 100;
-
-const TABS = [
-  {
-    key: 'pending',
-    label: 'Pending',
-  },
-  {
-    key: 'accepted',
-    label: 'Accepted',
-  },
-  {
-    key: 'rejected',
-    label: 'Rejected',
-  },
-  {
-    key: '',
-    label: 'All',
-  },
-] as const;
-
-type TabKey = (typeof TABS)[number]['key'];
-
-type ResponseStatus = 'accepted' | 'rejected';
-
-// Top-level page sections: referrals vs patient requests
-type PageSection = 'referrals' | 'patient_requests';
-
-const PR_STATUS_COLORS: Record<string, string> = {
-  pending:       'bg-yellow-100 text-yellow-800',
-  accepted:      'bg-green-100 text-green-700',
-  rejected:      'bg-red-100 text-red-700',
-  call_required: 'bg-blue-100 text-blue-700',
-  cancelled:     'bg-gray-100 text-gray-500',
+// Serializer returns nested objects — helper to extract fields safely
+type WithDetail = {
+  referring_facility_detail?: { name?: string; phone?: string; emergency_contact?: string };
+  destination_facility_detail?: { name?: string };
+  service_detail?: { name?: string };
 };
 
-// --------------------------------------------------
-// HELPER FUNCTIONS
-// --------------------------------------------------
+function refFacilityName(r: Referral): string {
+  return (r as unknown as WithDetail).referring_facility_detail?.name || 'Unknown Hospital';
+}
+function destFacilityName(r: Referral): string {
+  return (r as unknown as WithDetail).destination_facility_detail?.name || 'Unknown Hospital';
+}
+function serviceName(r: Referral): string {
+  return (r as unknown as WithDetail).service_detail?.name || '';
+}
+function refFacilityPhone(r: Referral): string {
+  const d = (r as unknown as WithDetail).referring_facility_detail;
+  return d?.emergency_contact || d?.phone || '';
+}
 
-const safeString = (value: unknown): string => {
-  if (typeof value === 'string') {
-    return value;
-  }
+type Section = 'referrals' | 'patient_requests';
+type ReferralTab = '' | 'pending' | 'accepted' | 'rejected' | 'call_required';
 
-  if (typeof value === 'number') {
-    return String(value);
-  }
+const REF_TABS: { key: ReferralTab; label: string }[] = [
+  { key: 'pending',       label: 'Pending' },
+  { key: 'accepted',      label: 'Accepted' },
+  { key: 'call_required', label: 'Call Required' },
+  { key: 'rejected',      label: 'Rejected' },
+  { key: '',              label: 'All' },
+];
 
-  return '';
+const PR_TABS: { key: string; label: string }[] = [
+  { key: 'pending',       label: 'Pending' },
+  { key: 'accepted',      label: 'Accepted' },
+  { key: 'call_required', label: 'Call Required' },
+  { key: 'rejected',      label: 'Rejected' },
+  { key: '',              label: 'All' },
+];
+
+const URGENCY_COLOR: Record<string, string> = {
+  emergency: 'bg-red-100 text-red-700 border-red-200',
+  urgent:    'bg-orange-100 text-orange-700 border-orange-200',
+  routine:   'bg-gray-100 text-gray-600 border-gray-200',
 };
 
-const formatReferralDate = (
-  value: string | null | undefined,
-): string => {
-  if (!value) {
-    return '—';
-  }
+function fmt(d?: string | null) {
+  if (!d) return '—';
+  try { return format(new Date(d), 'MMM d, HH:mm'); }
+  catch { return '—'; }
+}
 
-  const date = new Date(value);
+interface RespondModal {
+  type: 'referral' | 'patient_request';
+  id: number;
+  action: 'accepted' | 'rejected' | 'call_required';
+  label?: string;
+  code?: string;
+}
 
-  if (!isValid(date)) {
-    return '—';
-  }
-
-  return format(date, 'MMM d, yyyy HH:mm');
-};
-
-// --------------------------------------------------
-// URGENCY BADGE
-// --------------------------------------------------
-
-const UrgencyBadge: React.FC<{
-  urgency: string | null | undefined;
-}> = ({ urgency }) => {
-  const styles: Record<string, string> = {
-    emergency: 'bg-red-100 text-red-700',
-
-    urgent: 'bg-orange-100 text-orange-700',
-
-    routine: 'bg-gray-100 text-gray-600',
-  };
-
-  const normalizedUrgency =
-    urgency?.toLowerCase() || 'unknown';
-
-  const badgeStyle =
-    styles[normalizedUrgency] ||
-    'bg-gray-100 text-gray-600';
-
-  return (
-    <span
-      className={`badge text-xs ${badgeStyle}`}
-    >
-      {urgency || 'Unknown'}
-    </span>
-  );
-};
-
-// --------------------------------------------------
-// COMPONENT
-// --------------------------------------------------
+const PAGE_SIZE = 15;
 
 export const IncomingReferrals: React.FC = () => {
   const { user } = useAuthStore();
+  const mountedRef = useRef(true);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; }; }, []);
 
-  // ------------------------------------------------
-  // SECTION STATE (Referrals vs Patient Requests)
-  // ------------------------------------------------
+  // ─── Section ──────────────────────────────────────────────
+  const [section, setSection] = useState<Section>('referrals');
 
-  const [pageSection, setPageSection] =
-    useState<PageSection>('referrals');
+  // ─── Referrals state ──────────────────────────────────────
+  const [referrals, setReferrals]   = useState<Referral[]>([]);
+  const [refLoading, setRefLoading] = useState(true);
+  const [refTab, setRefTab]         = useState<ReferralTab>('pending');
+  const [refSearch, setRefSearch]   = useState('');
+  const [refPage, setRefPage]       = useState(1);
+  const [refTotal, setRefTotal]     = useState(0);
+  const [refHasNext, setRefHasNext] = useState(false);
+  const [expandedRef, setExpandedRef] = useState<number | null>(null);
+  const [refKey, setRefKey]         = useState(0);
 
-  // ------------------------------------------------
-  // PATIENT REQUESTS STATE
-  // ------------------------------------------------
+  // ─── Patient Requests state ────────────────────────────────
+  const [requests, setRequests]     = useState<PatientRequest[]>([]);
+  const [prLoading, setPrLoading]   = useState(true);
+  const [prTab, setPrTab]           = useState('pending');
+  const [prSearch, setPrSearch]     = useState('');
+  const [prPage, setPrPage]         = useState(1);
+  const [prTotal, setPrTotal]       = useState(0);
+  const [prHasNext, setPrHasNext]   = useState(false);
+  const [expandedPr, setExpandedPr] = useState<number | null>(null);
+  const [prKey, setPrKey]           = useState(0);
 
-  const [patientRequests, setPatientRequests] = useState<PatientRequest[]>([]);
-  const [prLoading, setPrLoading] = useState(false);
-  const [prError, setPrError] = useState<string | null>(null);
-  const [prRefreshKey, setPrRefreshKey] = useState(0);
-  const [prResponding, setPrResponding] = useState<number | null>(null);
-  const prRespondingRef = useRef(false);
+  // ─── Respond modal ────────────────────────────────────────
+  const [modal, setModal]       = useState<RespondModal | null>(null);
+  const [modalNote, setModalNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  // ------------------------------------------------
-  // STATE
-  // ------------------------------------------------
+  // ─── Fetch referrals ──────────────────────────────────────
+  const fetchReferrals = useCallback(async (page = 1) => {
+    setRefLoading(true);
+    try {
+      const params: Record<string, string | number> = { page, page_size: PAGE_SIZE };
+      if (refTab) params.status = refTab;
+      if (refSearch.trim()) params.search = refSearch.trim();
+      const res = await referralsApi.list(params);
+      if (!mountedRef.current) return;
+      const data = res.data as { results?: Referral[]; count?: number } | Referral[];
+      const results = Array.isArray(data) ? data : ((data as { results?: Referral[] }).results ?? []);
+      const count   = Array.isArray(data) ? results.length : ((data as { count?: number }).count ?? results.length);
+      setReferrals(results);
+      setRefTotal(count);
+      setRefHasNext(page * PAGE_SIZE < count);
+      setRefPage(page);
+    } catch { toast.error('Failed to load referrals.'); }
+    finally { if (mountedRef.current) setRefLoading(false); }
+  }, [refTab, refSearch]);
 
-  const [referrals, setReferrals] = useState<
-    Referral[]
-  >([]);
+  useEffect(() => { fetchReferrals(1); }, [fetchReferrals, refKey]);
 
-  const [loading, setLoading] = useState(true);
+  // ─── Fetch patient requests ───────────────────────────────
+  const fetchRequests = useCallback(async (page = 1) => {
+    setPrLoading(true);
+    try {
+      const params: Record<string, string | number> = { page, page_size: PAGE_SIZE };
+      if (prTab) params.status = prTab;
+      if (prSearch.trim()) params.search = prSearch.trim();
+      const res = await patientRequestsApi.list(params);
+      if (!mountedRef.current) return;
+      setRequests(res.data.results);
+      setPrTotal(res.data.count);
+      setPrHasNext(page * PAGE_SIZE < res.data.count);
+      setPrPage(page);
+    } catch { toast.error('Failed to load patient requests.'); }
+    finally { if (mountedRef.current) setPrLoading(false); }
+  }, [prTab, prSearch]);
 
-  const [error, setError] = useState<string | null>(
-    null,
+  useEffect(() => { fetchRequests(1); }, [fetchRequests, prKey]);
+
+  // ─── Respond ──────────────────────────────────────────────
+  const handleRespond = async () => {
+    if (!modal || submitting) return;
+    if (modal.action === 'rejected' && !modalNote.trim()) {
+      toast.error('Please provide a rejection reason.'); return;
+    }
+    setSubmitting(true);
+    try {
+      if (modal.type === 'referral') {
+        await referralsApi.respond(modal.id, { status: modal.action, note: modalNote });
+        setRefKey(k => k + 1);
+      } else {
+        await patientRequestsApi.respond(modal.id, { status: modal.action as PatientRequestStatus, note: modalNote });
+        setPrKey(k => k + 1);
+      }
+      toast.success(
+        modal.action === 'accepted' ? 'Accepted successfully.' :
+        modal.action === 'rejected' ? 'Rejected.' :
+        'Marked as call required.'
+      );
+      setModal(null); setModalNote('');
+    } catch (err: unknown) {
+      const e = err as { response?: { data?: { error?: string } } };
+      toast.error(e.response?.data?.error || 'Failed to respond.');
+    } finally {
+      if (mountedRef.current) setSubmitting(false);
+    }
+  };
+
+  const callPhone = (phone?: string) => {
+    if (!phone) { toast.error('No phone number available.'); return; }
+    window.location.href = `tel:${phone.replace(/[^\d+]/g, '')}`;
+  };
+
+  const openModal = (m: RespondModal) => { setModal(m); setModalNote(''); };
+
+  // ─── Sub-components ───────────────────────────────────────
+  const TabBar = ({ tabs, active, onChange }: {
+    tabs: { key: string; label: string }[];
+    active: string;
+    onChange: (k: string) => void;
+  }) => (
+    <div className="flex gap-1 bg-white rounded-xl border border-[#ede0ce] p-1 w-fit mb-4 shadow-sm overflow-x-auto">
+      {tabs.map(t => (
+        <button key={t.key || 'all'} onClick={() => onChange(t.key)}
+          className={`whitespace-nowrap px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            active === t.key ? 'bg-[#ede0ce] text-[#4a3a24]' : 'text-[#8a7a63] hover:bg-[#faf1e0]'
+          }`}
+        >{t.label}</button>
+      ))}
+    </div>
   );
 
-  const [activeTab, setActiveTab] =
-    useState<TabKey>('pending');
-
-  const [search, setSearch] = useState('');
-
-  const [responding, setResponding] = useState<
-    number | null
-  >(null);
-
-  const [calling, setCalling] = useState<
-    number | null
-  >(null);
-
-  const [rejectingId, setRejectingId] = useState<
-    number | null
-  >(null);
-
-  const [rejectionNote, setRejectionNote] =
-    useState('');
-
-  const [page, setPage] = useState(1);
-
-  const [totalCount, setTotalCount] = useState<
-    number | null
-  >(null);
-
-  const [hasNextPage, setHasNextPage] =
-    useState(false);
-
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // ------------------------------------------------
-  // REFS
-  // ------------------------------------------------
-
-  const mountedRef = useRef(false);
-
-  const respondingRef = useRef(false);
-
-  // ------------------------------------------------
-  // FETCH REFERRALS
-  // ------------------------------------------------
-
-  useEffect(() => {
-    mountedRef.current = true;
-
-    let cancelled = false;
-
-    const fetchReferrals = async () => {
-      setLoading(true);
-
-      setError(null);
-
-      try {
-        const params: Record<
-          string,
-          string | number
-        > = {
-          page,
-          page_size: PAGE_SIZE,
-        };
-
-        if (activeTab) {
-          params.status = activeTab;
-        }
-
-        const response = await referralsApi.list(
-          params,
-        );
-
-        if (cancelled) {
-          return;
-        }
-
-        const data: unknown = response.data;
-
-        let fetchedReferrals: Referral[] = [];
-
-        let nextPage = false;
-
-        let count: number | null = null;
-
-        // Handle API returning an array directly.
-
-        if (Array.isArray(data)) {
-          fetchedReferrals = data as Referral[];
-
-          nextPage = false;
-        }
-
-        // Handle Django REST Framework pagination.
-
-        else if (
-          data !== null &&
-          typeof data === 'object' &&
-          'results' in data
-        ) {
-          const paginatedData = data as {
-            results?: unknown;
-            next?: unknown;
-            previous?: unknown;
-            count?: unknown;
-          };
-
-          if (
-            !Array.isArray(
-              paginatedData.results,
-            )
-          ) {
-            throw new Error(
-              'Invalid referrals API response',
-            );
-          }
-
-          fetchedReferrals =
-            paginatedData.results as Referral[];
-
-          if (
-            typeof paginatedData.count ===
-            'number'
-          ) {
-            count = paginatedData.count;
-          }
-
-          if (
-            typeof paginatedData.next ===
-            'string'
-          ) {
-            nextPage =
-              paginatedData.next.length > 0;
-          } else if (count !== null) {
-            nextPage =
-              page * PAGE_SIZE < count;
-          }
-        }
-
-        // Unexpected API response.
-
-        else {
-          throw new Error(
-            'Unexpected referrals API response format',
-          );
-        }
-
-        if (cancelled) {
-          return;
-        }
-
-        // If the current page becomes empty after
-        // accepting/rejecting referrals, return to
-        // the previous page.
-
-        if (
-          fetchedReferrals.length === 0 &&
-          page > 1
-        ) {
-          setPage((currentPage) =>
-            Math.max(1, currentPage - 1),
-          );
-
-          return;
-        }
-
-        setReferrals(fetchedReferrals);
-
-        setHasNextPage(nextPage);
-
-        setTotalCount(count);
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-
-        console.error(
-          'Failed to fetch referrals:',
-          err,
-        );
-
-        setError(
-          'Unable to load referrals. Please try again.',
-        );
-
-        setReferrals([]);
-
-        setTotalCount(null);
-
-        setHasNextPage(false);
-
-        toast.error(
-          'Failed to load incoming referrals',
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void fetchReferrals();
-
-    return () => {
-      cancelled = true;
-
-      mountedRef.current = false;
-    };
-  }, [activeTab, page, refreshKey]);
-
-  // ------------------------------------------------
-  // FETCH PATIENT REQUESTS
-  // ------------------------------------------------
-
-  useEffect(() => {
-    if (!user?.hospital) return;
-    let cancelled = false;
-
-    const fetchPR = async () => {
-      setPrLoading(true);
-      setPrError(null);
-      try {
-        const res = await patientRequestsApi.list({
-          destination_hospital: user.hospital as number,
-          page_size: 100,
-        });
-        if (cancelled) return;
-        const data = res.data;
-        setPatientRequests(
-          Array.isArray(data)
-            ? (data as PatientRequest[])
-            : (data as { results: PatientRequest[] }).results ?? [],
-        );
-      } catch {
-        if (!cancelled) {
-          setPrError('Unable to load patient requests. Please try again.');
-          toast.error('Failed to load patient requests');
-        }
-      } finally {
-        if (!cancelled) setPrLoading(false);
-      }
-    };
-
-    void fetchPR();
-    return () => { cancelled = true; };
-  }, [user?.hospital, prRefreshKey]);
-
-  const refreshPatientRequests = () => {
-    setPrRefreshKey((k) => k + 1);
-  };
-
-  const handlePRRespond = async (
-    id: number,
-    status: PatientRequestStatus,
-    note = '',
-  ) => {
-    if (prRespondingRef.current) return;
-    prRespondingRef.current = true;
-    setPrResponding(id);
-    try {
-      await patientRequestsApi.respond(id, { status, note });
-      toast.success(
-        status === 'accepted'
-          ? 'Request accepted'
-          : status === 'rejected'
-            ? 'Request rejected'
-            : 'Call required — patient notified',
-      );
-      refreshPatientRequests();
-    } catch {
-      toast.error('Failed to update request status. Please try again.');
-    } finally {
-      prRespondingRef.current = false;
-      setPrResponding(null);
-    }
-  };
-
-  // ------------------------------------------------
-  // REFRESH REFERRALS
-  // ------------------------------------------------
-
-  const refreshReferrals = () => {
-    setRefreshKey((previous) => previous + 1);
-  };
-
-  // ------------------------------------------------
-  // CHANGE TAB
-  // ------------------------------------------------
-
-  const handleTabChange = (tab: TabKey) => {
-    if (tab === activeTab) {
-      return;
-    }
-
-    setActiveTab(tab);
-
-    setPage(1);
-
-    setSearch('');
-
-    setRejectingId(null);
-
-    setRejectionNote('');
-
-    setReferrals([]);
-  };
-
-  // ------------------------------------------------
-  // ACCEPT / REJECT REFERRAL
-  // ------------------------------------------------
-
-  const handleRespond = async (
-    id: number,
-    status: ResponseStatus,
-    note = '',
-  ) => {
-    // Prevent duplicate API requests.
-
-    if (respondingRef.current) {
-      return;
-    }
-
-    // Rejection must have a reason.
-
-    if (
-      status === 'rejected' &&
-      !note.trim()
-    ) {
-      toast.error(
-        'Please provide a reason for rejection',
-      );
-
-      return;
-    }
-
-    respondingRef.current = true;
-
-    setResponding(id);
-
-    try {
-      await referralsApi.respond(id, {
-        status,
-        note: note.trim(),
-      });
-
-      if (!mountedRef.current) {
-        return;
-      }
-
-      if (status === 'accepted') {
-        toast.success(
-          'Referral accepted successfully',
-        );
-      } else {
-        toast.success(
-          'Referral rejected successfully',
-        );
-      }
-
-      // Close rejection form.
-
-      setRejectingId(null);
-
-      setRejectionNote('');
-
-      // Refresh current tab after successful response.
-
-      refreshReferrals();
-    } catch (err) {
-      console.error(
-        'Failed to respond to referral:',
-        err,
-      );
-
-      if (mountedRef.current) {
-        toast.error(
-          'Failed to update referral status. Please try again.',
-        );
-      }
-    } finally {
-      respondingRef.current = false;
-
-      if (mountedRef.current) {
-        setResponding(null);
-      }
-    }
-  };
-
-  // ------------------------------------------------
-  // REJECTION FORM
-  // ------------------------------------------------
-
-  const openRejectForm = (id: number) => {
-    if (respondingRef.current) {
-      return;
-    }
-
-    setRejectingId(id);
-
-    setRejectionNote('');
-  };
-
-  const closeRejectForm = () => {
-    if (respondingRef.current) {
-      return;
-    }
-
-    setRejectingId(null);
-
-    setRejectionNote('');
-  };
-
-  const confirmRejection = async (id: number) => {
-    const note = rejectionNote.trim();
-
-    if (!note) {
-      toast.error(
-        'Please enter a rejection reason',
-      );
-
-      return;
-    }
-
-    await handleRespond(
-      id,
-      'rejected',
-      note,
-    );
-  };
-
-  // ------------------------------------------------
-  // CALL REFERRING HOSPITAL
-  // ------------------------------------------------
-
-  const getReferringPhone = async (
-    facilityId: unknown,
-    referralId: number,
-  ) => {
-    if (calling !== null) {
-      return;
-    }
-
-    const hospitalId = Number(facilityId);
-
-    if (
-      !Number.isInteger(hospitalId) ||
-      hospitalId <= 0
-    ) {
-      toast.error(
-        'Invalid referring hospital ID',
-      );
-
-      return;
-    }
-
-    setCalling(referralId);
-
-    try {
-      const response = await hospitalsApi.get(
-        hospitalId,
-      );
-
-      const hospital = response.data;
-
-      const rawPhone =
-        hospital?.emergency_contact ||
-        hospital?.phone;
-
-      if (!rawPhone) {
-        toast.error(
-          'No contact number available for this hospital',
-        );
-
-        return;
-      }
-
-      const phone = safeString(rawPhone)
-        .trim()
-        .replace(/[^\d+]/g, '')
-        .replace(/(?!^)\+/g, '');
-
-      if (
-        !/^\+?\d{5,15}$/.test(phone)
-      ) {
-        toast.error(
-          'Invalid hospital contact number',
-        );
-
-        return;
-      }
-
-      window.location.href = `tel:${phone}`;
-    } catch (err) {
-      console.error(
-        'Failed to load hospital contact:',
-        err,
-      );
-
-      toast.error(
-        'Could not load hospital contact information',
-      );
-    } finally {
-      if (mountedRef.current) {
-        setCalling(null);
-      }
-    }
-  };
-
-  // ------------------------------------------------
-  // SEARCH REFERRALS
-  // ------------------------------------------------
-
-  const filteredReferrals = useMemo(() => {
-    const query = search
-      .trim()
-      .toLowerCase();
-
-    if (!query) {
-      return referrals;
-    }
-
-    return referrals.filter((referral) => {
-      const referralCode = safeString(
-        referral.referral_code,
-      ).toLowerCase();
-
-      const hospitalName = safeString(
-        referral.referring_facility_name,
-      ).toLowerCase();
-
-      const condition = safeString(
-        referral.patient_condition_summary,
-      ).toLowerCase();
-
-      const service = safeString(
-        referral.service_name,
-      ).toLowerCase();
-
-      const urgency = safeString(
-        referral.urgency,
-      ).toLowerCase();
-
-      const status = safeString(
-        referral.status,
-      ).toLowerCase();
-
-      return (
-        referralCode.includes(query) ||
-        hospitalName.includes(query) ||
-        condition.includes(query) ||
-        service.includes(query) ||
-        urgency.includes(query) ||
-        status.includes(query)
-      );
-    });
-  }, [referrals, search]);
-
-  // ------------------------------------------------
-  // PAGINATION
-  // ------------------------------------------------
-
-  const handlePreviousPage = () => {
-    if (loading || page <= 1) {
-      return;
-    }
-
-    setPage((previous) =>
-      Math.max(1, previous - 1),
-    );
-
-    setRejectingId(null);
-
-    setRejectionNote('');
-  };
-
-  const handleNextPage = () => {
-    if (loading || !hasNextPage) {
-      return;
-    }
-
-    setPage((previous) => previous + 1);
-
-    setRejectingId(null);
-
-    setRejectionNote('');
-  };
-
-  // ------------------------------------------------
-  // RENDER
-  // ------------------------------------------------
-
+  const SearchBar = ({ value, onChange, onSearch, placeholder }: {
+    value: string; onChange: (v: string) => void;
+    onSearch: () => void; placeholder: string;
+  }) => (
+    <div className="bg-white rounded-2xl border border-[#ede0ce] shadow-sm p-3 mb-4 flex gap-2">
+      <div className="relative flex-1">
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input type="text" value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && onSearch()}
+          placeholder={placeholder}
+          className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#ede0ce] bg-[#faf6ee] text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+        />
+      </div>
+      <button onClick={onSearch}
+        className="px-4 py-2.5 rounded-xl bg-primary-700 text-white text-sm font-medium hover:bg-primary-800 transition-colors flex items-center gap-1.5">
+        <FiSearch /> Search
+      </button>
+    </div>
+  );
+
+  const Pagination = ({ page, hasNext, total, onPrev, onNext }: {
+    page: number; hasNext: boolean; total: number;
+    onPrev: () => void; onNext: () => void;
+  }) => (
+    page > 1 || hasNext ? (
+      <div className="flex justify-center gap-2 mt-5">
+        <button onClick={onPrev} disabled={page <= 1}
+          className="px-4 py-2 rounded-xl border border-[#ede0ce] text-sm text-[#8a7a63] disabled:opacity-40 hover:bg-[#faf1e0]">Previous</button>
+        <span className="px-4 py-2 text-sm text-gray-500">Page {page} · {total} total</span>
+        <button onClick={onNext} disabled={!hasNext}
+          className="px-4 py-2 rounded-xl border border-[#ede0ce] text-sm text-[#8a7a63] disabled:opacity-40 hover:bg-[#faf1e0]">Next</button>
+      </div>
+    ) : null
+  );
+
+  // ─── Render ───────────────────────────────────────────────
   return (
-    <div>
-      {/* ------------------------------------------
-          PAGE HEADER
-      ------------------------------------------ */}
+    <div className="bg-[#faf6ee] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
 
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="page-title">
-            Incoming Referrals
-          </h1>
-
-          <p className="text-sm text-gray-500">
-            Referrals directed to{' '}
-            <span className="font-medium">
-              {user?.hospital_name ||
-                'your hospital'}
-            </span>
-          </p>
+          <h1 className="text-2xl font-bold text-[#3d2f1c]">Incoming Referrals &amp; Requests</h1>
+          <p className="text-sm text-[#8a7a63] mt-0.5">{user?.hospital_name || 'Your hospital'}</p>
         </div>
-
         <button
-          type="button"
-          onClick={pageSection === 'referrals' ? refreshReferrals : refreshPatientRequests}
-          disabled={pageSection === 'referrals' ? loading : prLoading}
-          className="btn-secondary btn-sm flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <FiRefreshCw
-            className={
-              (pageSection === 'referrals' ? loading : prLoading) ? 'animate-spin' : ''
-            }
-          />
-
-          Refresh
+          onClick={() => section === 'referrals' ? setRefKey(k => k + 1) : setPrKey(k => k + 1)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[#ede0ce] bg-white text-sm text-[#8a7a63] hover:bg-[#faf1e0] transition-colors">
+          <FiRefreshCw className={(refLoading || prLoading) ? 'animate-spin' : ''} /> Refresh
         </button>
       </div>
 
-      {/* ------------------------------------------
-          TOP-LEVEL SECTION TABS
-      ------------------------------------------ */}
-
-      <div className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1">
-        <button
-          type="button"
-          onClick={() => setPageSection('referrals')}
-          className={`whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-            pageSection === 'referrals'
-              ? 'bg-white text-primary-700 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Referrals
-        </button>
-        <button
-          type="button"
-          onClick={() => setPageSection('patient_requests')}
-          className={`whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-            pageSection === 'patient_requests'
-              ? 'bg-white text-primary-700 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          Patient Requests
-        </button>
-      </div>
-
-      {/* ------------------------------------------
-          PATIENT REQUESTS SECTION
-      ------------------------------------------ */}
-
-      {pageSection === 'patient_requests' && (
-        <div>
-          {prLoading ? (
-            <LoadingSpinner text="Loading patient requests..." />
-          ) : prError ? (
-            <div className="card py-10 text-center">
-              <p className="mb-4 text-sm text-red-600">{prError}</p>
-              <button type="button" onClick={refreshPatientRequests} className="btn-primary btn-sm">
-                Try Again
-              </button>
-            </div>
-          ) : patientRequests.length === 0 ? (
-            <div className="card py-10 text-center text-gray-500">
-              <div className="mb-3 text-4xl">📩</div>
-              <p className="font-medium">No patient requests found</p>
-              <p className="mt-1 text-sm text-gray-400">
-                Patient requests directed to your hospital will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="card p-0">
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Code</th>
-                      <th>Patient</th>
-                      <th className="hidden sm:table-cell">Service</th>
-                      <th className="hidden sm:table-cell">Condition</th>
-                      <th>Status</th>
-                      <th className="hidden md:table-cell">Date</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {patientRequests.map((pr) => {
-                      const isPending = pr.status === 'pending';
-                      const isActing = prResponding === pr.id;
-                      return (
-                        <tr key={pr.id}>
-                          <td className="font-mono text-xs font-bold text-gray-700">
-                            {pr.request_code || '—'}
-                          </td>
-                          <td>
-                            <div className="text-sm font-medium text-gray-800">{pr.patient_name}</div>
-                            {pr.contact_phone && (
-                              <div className="text-xs text-gray-500">{pr.contact_phone}</div>
-                            )}
-                          </td>
-                          <td className="hidden text-sm text-gray-600 sm:table-cell">
-                            {pr.service_name || pr.service_name_freetext || '—'}
-                          </td>
-                          <td className="hidden text-sm text-gray-500 sm:table-cell max-w-[180px]">
-                            <span className="line-clamp-2">{pr.condition_summary || '—'}</span>
-                          </td>
-                          <td>
-                            <span
-                              className={`badge text-xs ${PR_STATUS_COLORS[pr.status] ?? 'bg-gray-100 text-gray-600'}`}
-                            >
-                              {pr.status_display || pr.status}
-                            </span>
-                          </td>
-                          <td className="hidden text-xs text-gray-500 md:table-cell">
-                            {formatReferralDate(pr.created_at)}
-                          </td>
-                          <td>
-                            {isPending && (
-                              <div className="flex flex-wrap items-center gap-1">
-                                <button
-                                  type="button"
-                                  disabled={prResponding !== null}
-                                  onClick={() => void handlePRRespond(pr.id, 'accepted')}
-                                  className="btn-success btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {isActing ? 'Processing...' : 'Accept'}
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={prResponding !== null}
-                                  onClick={() => void handlePRRespond(pr.id, 'call_required')}
-                                  className="btn-sm text-xs rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Call Required
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={prResponding !== null}
-                                  onClick={() => void handlePRRespond(pr.id, 'rejected')}
-                                  className="btn-danger btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            )}
-                            {!isPending && pr.response_note && (
-                              <p className="text-xs text-gray-500 max-w-[180px] line-clamp-2">{pr.response_note}</p>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-              <div className="flex items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
-                <div className="text-xs text-gray-500">
-                  {patientRequests.length} patient{' '}
-                  {patientRequests.length === 1 ? 'request' : 'requests'}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ------------------------------------------
-          REFERRALS SECTION (existing)
-      ------------------------------------------ */}
-
-      {pageSection === 'referrals' && (
-        <div>
-          {/* ------------------------------------------
-              STATUS TABS
-          ------------------------------------------ */}
-
-          <div className="mb-4 flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg bg-gray-100 p-1">
-          {TABS.map((tab) => (
-          <button
-            key={tab.key || 'all'}
-            type="button"
-            onClick={() =>
-              handleTabChange(tab.key)
-            }
-            className={`whitespace-nowrap rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-              activeTab === tab.key
-                ? 'bg-white text-primary-700 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            {tab.label}
+      {/* Section toggle */}
+      <div className="flex gap-1 bg-white rounded-xl border border-[#ede0ce] p-1 w-fit mb-5 shadow-sm">
+        {(['referrals', 'patient_requests'] as Section[]).map(s => (
+          <button key={s} onClick={() => setSection(s)}
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+              section === s ? 'bg-primary-700 text-white' : 'text-[#8a7a63] hover:bg-[#faf1e0]'
+            }`}>
+            {s === 'referrals' ? 'Referrals' : 'Patient Requests'}
+            {s === 'referrals' && refTotal > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${section === s ? 'bg-white/30 text-white' : 'bg-primary-100 text-primary-700'}`}>{refTotal}</span>
+            )}
+            {s === 'patient_requests' && prTotal > 0 && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${section === s ? 'bg-white/30 text-white' : 'bg-primary-100 text-primary-700'}`}>{prTotal}</span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* ------------------------------------------
-          SEARCH
-      ------------------------------------------ */}
+      {/* ═══════════════════ REFERRALS ═══════════════════════ */}
+      {section === 'referrals' && (
+        <>
+          <TabBar tabs={REF_TABS} active={refTab} onChange={v => { setRefTab(v as ReferralTab); setRefPage(1); setExpandedRef(null); }} />
+          <SearchBar value={refSearch} onChange={setRefSearch} onSearch={() => fetchReferrals(1)} placeholder="Search code, hospital, service, condition…" />
 
-      <div className="card mb-4">
-        <div className="relative">
-          <FiSearch
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            aria-hidden="true"
-          />
-
-          <input
-            type="search"
-            className="input pl-9"
-            placeholder="Search by code, hospital, service or condition..."
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            aria-label="Search incoming referrals"
-          />
-        </div>
-
-        <p className="mt-2 text-xs text-gray-400">
-          Search filters referrals on the current page.
-        </p>
-      </div>
-
-      {/* ------------------------------------------
-          LOADING STATE
-      ------------------------------------------ */}
-
-      {loading ? (
-        <LoadingSpinner
-          text="Loading incoming referrals..."
-        />
-      ) : error ? (
-        /* ----------------------------------------
-           ERROR STATE
-        ---------------------------------------- */
-
-        <div className="card py-10 text-center">
-          <p className="mb-4 text-sm text-red-600">
-            {error}
-          </p>
-
-          <button
-            type="button"
-            onClick={refreshReferrals}
-            className="btn-primary btn-sm"
-          >
-            Try Again
-          </button>
-        </div>
-      ) : filteredReferrals.length === 0 ? (
-        /* ----------------------------------------
-           EMPTY STATE
-        ---------------------------------------- */
-
-        <div className="card py-10 text-center text-gray-500">
-          <div className="mb-3 text-4xl">
-            📋
-          </div>
-
-          <p className="font-medium">
-            {search.trim()
-              ? 'No matching referrals found'
-              : activeTab
-                ? `No ${activeTab} referrals found`
-                : 'No referrals found'}
-          </p>
-
-          <p className="mt-1 text-sm text-gray-400">
-            {search.trim()
-              ? 'Try a different search term.'
-              : 'Referrals directed to your hospital will appear here.'}
-          </p>
-        </div>
-      ) : (
-        /* ----------------------------------------
-           REFERRALS TABLE
-        ---------------------------------------- */
-
-        <div className="card p-0">
-          <div className="table-container">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-
-                  <th>From Hospital</th>
-
-                  <th className="hidden sm:table-cell">
-                    Service
-                  </th>
-
-                  <th>Urgency</th>
-
-                  <th>Status</th>
-
-                  <th className="hidden md:table-cell">
-                    Date
-                  </th>
-
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredReferrals.map(
-                  (referral) => {
-                    const isResponding =
-                      responding === referral.id;
-
-                    const isCalling =
-                      calling === referral.id;
-
-                    const isPending =
-                      referral.status ===
-                      'pending';
-
-                    const showRejectForm =
-                      rejectingId ===
-                      referral.id;
-
-                    return (
-                      <tr key={referral.id}>
-                        {/* REFERRAL CODE */}
-
-                        <td className="font-mono text-xs font-bold text-gray-700">
-                          {referral.referral_code ||
-                            '—'}
-                        </td>
-
-                        {/* REFERRING HOSPITAL */}
-
-                        <td>
-                          <div className="text-sm font-medium text-gray-800">
-                            {referral.referring_facility_name ||
-                              'Unknown hospital'}
-                          </div>
-
-                          <div
-                            className="hidden max-w-[150px] truncate text-xs text-gray-500 sm:block"
-                            title={
-                              referral.patient_condition_summary ||
-                              ''
-                            }
-                          >
-                            {referral.patient_condition_summary ||
-                              'No condition summary'}
-                          </div>
-                        </td>
-
-                        {/* SERVICE */}
-
-                        <td className="hidden text-sm text-gray-600 sm:table-cell">
-                          {referral.service_name ||
-                            '—'}
-                        </td>
-
-                        {/* URGENCY */}
-
-                        <td>
-                          <UrgencyBadge
-                            urgency={
-                              referral.urgency
-                            }
-                          />
-                        </td>
-
-                        {/* STATUS */}
-
-                        <td>
-                          <ReferralStatusBadge
-                            status={
-                              referral.status as ReferralStatus
-                            }
-                          />
-                        </td>
-
-                        {/* CREATED DATE */}
-
-                        <td className="hidden text-xs text-gray-500 md:table-cell">
-                          {formatReferralDate(
-                            referral.created_at,
+          {refLoading ? <div className="flex justify-center py-16"><LoadingSpinner /></div>
+          : referrals.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#ede0ce] p-16 text-center shadow-sm">
+              <div className="text-5xl mb-3">📋</div>
+              <p className="text-gray-400 text-sm">No {refTab || ''} referrals found.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {referrals.map(ref => {
+                const canRespond = ref.status === 'pending' || ref.status === 'call_required';
+                const isExpanded = expandedRef === ref.id;
+                const phone = refFacilityPhone(ref);
+                return (
+                  <div key={ref.id} className="bg-white rounded-2xl border border-[#ede0ce] shadow-sm overflow-hidden">
+                    <div className="p-4 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        {/* Top row */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs bg-[#f1e4cf] text-[#8b5a2b] px-2 py-0.5 rounded-md">{ref.referral_code}</span>
+                          <span className="text-sm font-semibold text-[#172554] truncate">{refFacilityName(ref)}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${URGENCY_COLOR[ref.urgency] ?? URGENCY_COLOR.routine}`}>
+                            {ref.urgency === 'emergency' ? '🚨 ' : ''}{ref.urgency_display || ref.urgency}
+                          </span>
+                          <ReferralStatusBadge status={ref.status as ReferralStatus} />
+                        </div>
+                        {/* Meta row */}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1.5 text-xs text-gray-500">
+                          {serviceName(ref) && <span className="text-primary-700 font-medium">{serviceName(ref)}</span>}
+                          {ref.patient_age && (
+                            <span className="flex items-center gap-1">
+                              <FiUser className="flex-shrink-0" />
+                              Age {ref.patient_age}
+                              {ref.patient_gender ? ` · ${ref.patient_gender === 'm' ? 'Male' : ref.patient_gender === 'f' ? 'Female' : 'Other'}` : ''}
+                            </span>
                           )}
-                        </td>
+                          <span className="flex items-center gap-1"><FiClock className="flex-shrink-0" />{fmt(ref.created_at)}</span>
+                        </div>
+                        <p className="mt-1.5 text-sm text-[#3d2f1c] line-clamp-2">{ref.patient_condition_summary}</p>
+                      </div>
 
-                        {/* ACTIONS */}
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                        {canRespond && (
+                          <>
+                            <button title="Accept"
+                              onClick={() => openModal({ type: 'referral', id: ref.id, action: 'accepted', code: ref.referral_code })}
+                              className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors"><FiCheck /></button>
+                            <button title="Requires Call"
+                              onClick={() => openModal({ type: 'referral', id: ref.id, action: 'call_required', code: ref.referral_code })}
+                              className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"><FiPhone /></button>
+                            <button title="Reject"
+                              onClick={() => openModal({ type: 'referral', id: ref.id, action: 'rejected', code: ref.referral_code })}
+                              className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"><FiX /></button>
+                          </>
+                        )}
+                        {phone && (
+                          <button title="Call referring hospital" onClick={() => callPhone(phone)}
+                            className="p-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"><FiPhone /></button>
+                        )}
+                        <Link to={`/hadmin/referrals/${ref.id}`} title="View detail"
+                          className="p-2 rounded-lg border border-[#ede0ce] text-[#8a7a63] hover:bg-[#faf1e0] transition-colors"><FiEye /></Link>
+                        <button onClick={() => setExpandedRef(isExpanded ? null : ref.id)}
+                          className="p-2 rounded-lg border border-[#ede0ce] text-[#8a7a63] hover:bg-[#faf1e0] transition-colors">
+                          {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
+                        </button>
+                      </div>
+                    </div>
 
-                        <td>
-                          <div className="flex flex-wrap items-center gap-1">
-                            {/* VIEW */}
-
-                            <Link
-                              to={`/hadmin/referrals/${referral.id}`}
-                              className="btn-secondary btn-sm text-xs"
-                            >
-                              View
-                            </Link>
-
-                            {/* PENDING REFERRAL ACTIONS */}
-
-                            {isPending && (
-                              <>
-                                {/* ACCEPT */}
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void handleRespond(
-                                      referral.id,
-                                      'accepted',
-                                    )
-                                  }
-                                  disabled={
-                                    responding !==
-                                    null
-                                  }
-                                  className="btn-success btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  {isResponding
-                                    ? 'Processing...'
-                                    : 'Accept'}
-                                </button>
-
-                                {/* REJECT */}
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    openRejectForm(
-                                      referral.id,
-                                    )
-                                  }
-                                  disabled={
-                                    responding !==
-                                    null
-                                  }
-                                  className="btn-danger btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  Reject
-                                </button>
-
-                                {/* CALL */}
-
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    void getReferringPhone(
-                                      referral.referring_facility,
-                                      referral.id,
-                                    )
-                                  }
-                                  disabled={
-                                    isCalling ||
-                                    calling !==
-                                      null
-                                  }
-                                  className="btn-sm flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2 py-1.5 text-xs text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                  <FiPhone
-                                    className="text-xs"
-                                    aria-hidden="true"
-                                  />
-
-                                  {isCalling
-                                    ? 'Loading...'
-                                    : 'Call'}
-                                </button>
-                              </>
-                            )}
+                    {isExpanded && (
+                      <div className="border-t border-[#ede0ce] px-4 py-4 bg-[#faf6ee] space-y-2 text-sm">
+                        {ref.reason && <div><span className="text-xs font-semibold text-[#8a7a63] uppercase tracking-wide">Reason: </span><span className="text-[#3d2f1c]">{ref.reason}</span></div>}
+                        <div><span className="text-xs font-semibold text-[#8a7a63] uppercase tracking-wide">To: </span><span className="text-[#3d2f1c]">{destFacilityName(ref)}</span></div>
+                        {ref.responded_at && <div><span className="text-xs font-semibold text-[#8a7a63] uppercase tracking-wide">Responded: </span><span className="text-[#3d2f1c]">{fmt(ref.responded_at)}</span></div>}
+                        {canRespond && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button onClick={() => openModal({ type: 'referral', id: ref.id, action: 'accepted', code: ref.referral_code })}
+                              className="px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700">Accept</button>
+                            <button onClick={() => openModal({ type: 'referral', id: ref.id, action: 'call_required', code: ref.referral_code })}
+                              className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600">Requires Call</button>
+                            <button onClick={() => openModal({ type: 'referral', id: ref.id, action: 'rejected', code: ref.referral_code })}
+                              className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700">Reject</button>
                           </div>
-
-                          {/* ------------------------
-                              REJECTION NOTE FORM
-                          ------------------------ */}
-
-                          {isPending &&
-                            showRejectForm && (
-                              <div className="mt-3 min-w-[220px] rounded-lg border border-red-200 bg-red-50 p-3">
-                                <p className="mb-2 text-xs font-medium text-red-700">
-                                  Reason for rejection
-                                </p>
-
-                                <textarea
-                                  value={
-                                    rejectionNote
-                                  }
-                                  onChange={(
-                                    event,
-                                  ) =>
-                                    setRejectionNote(
-                                      event.target
-                                        .value,
-                                    )
-                                  }
-                                  placeholder="Enter rejection reason..."
-                                  rows={3}
-                                  maxLength={500}
-                                  disabled={
-                                    isResponding
-                                  }
-                                  className="w-full rounded-md border border-gray-300 bg-white p-2 text-sm focus:border-red-400 focus:outline-none"
-                                  aria-label="Rejection reason"
-                                />
-
-                                <div className="mt-2 flex flex-wrap gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      void confirmRejection(
-                                        referral.id,
-                                      )
-                                    }
-                                    disabled={
-                                      isResponding ||
-                                      !rejectionNote.trim()
-                                    }
-                                    className="btn-danger btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                                  >
-                                    {isResponding
-                                      ? 'Rejecting...'
-                                      : 'Confirm Reject'}
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={
-                                      closeRejectForm
-                                    }
-                                    disabled={
-                                      isResponding
-                                    }
-                                    className="btn-secondary btn-sm text-xs disabled:opacity-50"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                        </td>
-                      </tr>
-                    );
-                  },
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* --------------------------------------
-              TABLE FOOTER
-          -------------------------------------- */}
-
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 px-4 py-3">
-            <div className="text-xs text-gray-500">
-              Showing{' '}
-              {filteredReferrals.length}{' '}
-              {filteredReferrals.length === 1
-                ? 'referral'
-                : 'referrals'}
-
-              {totalCount !== null &&
-                !search.trim() && (
-                  <>
-                    {' '}
-                    of {totalCount}
-                  </>
-                )}
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-
-            {/* PAGINATION */}
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={
-                  handlePreviousPage
-                }
-                disabled={
-                  page <= 1 || loading
-                }
-                className="btn-secondary btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Previous
-              </button>
-
-              <span className="text-xs text-gray-500">
-                Page {page}
-              </span>
-
-              <button
-                type="button"
-                onClick={handleNextPage}
-                disabled={
-                  !hasNextPage ||
-                  loading
-                }
-                className="btn-secondary btn-sm text-xs disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
+          )}
+          <Pagination page={refPage} hasNext={refHasNext} total={refTotal}
+            onPrev={() => fetchReferrals(refPage - 1)} onNext={() => fetchReferrals(refPage + 1)} />
+        </>
       )}
+
+      {/* ═══════════════════ PATIENT REQUESTS ════════════════ */}
+      {section === 'patient_requests' && (
+        <>
+          <TabBar tabs={PR_TABS} active={prTab} onChange={v => { setPrTab(v); setPrPage(1); setExpandedPr(null); }} />
+          <SearchBar value={prSearch} onChange={setPrSearch} onSearch={() => fetchRequests(1)} placeholder="Search code, patient name, condition…" />
+
+          {prLoading ? <div className="flex justify-center py-16"><LoadingSpinner /></div>
+          : requests.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[#ede0ce] p-16 text-center shadow-sm">
+              <div className="text-5xl mb-3">📩</div>
+              <p className="text-gray-400 text-sm">No patient requests found.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {requests.map(pr => {
+                const canRespond = pr.status === 'pending' || pr.status === 'call_required';
+                const isExpanded = expandedPr === pr.id;
+                return (
+                  <div key={pr.id} className="bg-white rounded-2xl border border-[#ede0ce] shadow-sm overflow-hidden">
+                    <div className="p-4 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs bg-[#f1e4cf] text-[#8b5a2b] px-2 py-0.5 rounded-md">#{pr.request_code}</span>
+                          <span className="text-sm font-semibold text-[#172554]">{pr.patient_name}</span>
+                          {pr.patient_age ? <span className="text-xs text-gray-400">Age {pr.patient_age}</span> : null}
+                          <PatientRequestStatusBadge status={pr.status} size="sm" />
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 mt-1.5 text-xs text-gray-500">
+                          {pr.service_name && <span className="text-primary-700 font-medium">{pr.service_name}</span>}
+                          {pr.contact_phone && <span className="flex items-center gap-1"><FiPhone className="flex-shrink-0" />{pr.contact_phone}</span>}
+                          <span className="flex items-center gap-1"><FiClock className="flex-shrink-0" />{fmt(pr.created_at)}</span>
+                        </div>
+                        <p className="mt-1.5 text-sm text-[#3d2f1c] line-clamp-2">{pr.condition_summary}</p>
+                        {pr.response_note && !canRespond && (
+                          <p className="mt-1 text-xs text-[#8a7a63] italic">Response: {pr.response_note}</p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                        {canRespond && (
+                          <>
+                            <button title="Accept"
+                              onClick={() => openModal({ type: 'patient_request', id: pr.id, action: 'accepted', label: pr.patient_name, code: pr.request_code })}
+                              className="p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors"><FiCheck /></button>
+                            <button title="Requires Call"
+                              onClick={() => openModal({ type: 'patient_request', id: pr.id, action: 'call_required', label: pr.patient_name, code: pr.request_code })}
+                              className="p-2 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"><FiPhone /></button>
+                            <button title="Reject"
+                              onClick={() => openModal({ type: 'patient_request', id: pr.id, action: 'rejected', label: pr.patient_name, code: pr.request_code })}
+                              className="p-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100 transition-colors"><FiX /></button>
+                          </>
+                        )}
+                        {pr.contact_phone && (
+                          <button title="Call patient" onClick={() => callPhone(pr.contact_phone)}
+                            className="p-2 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors"><FiPhone /></button>
+                        )}
+                        <button onClick={() => setExpandedPr(isExpanded ? null : pr.id)}
+                          className="p-2 rounded-lg border border-[#ede0ce] text-[#8a7a63] hover:bg-[#faf1e0] transition-colors">
+                          {isExpanded ? <FiChevronUp /> : <FiChevronDown />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div className="border-t border-[#ede0ce] px-4 py-4 bg-[#faf6ee] space-y-2 text-sm">
+                        {pr.notes && <div><span className="text-xs font-semibold text-[#8a7a63] uppercase tracking-wide">Notes: </span><span className="text-[#3d2f1c]">{pr.notes}</span></div>}
+                        {pr.service_name_freetext && <div><span className="text-xs font-semibold text-[#8a7a63] uppercase tracking-wide">Service (text): </span><span className="text-[#3d2f1c]">{pr.service_name_freetext}</span></div>}
+                        {pr.response_note && (
+                          <div className="bg-white rounded-xl border border-[#ede0ce] p-3">
+                            <span className="text-xs font-semibold text-[#8a7a63] uppercase tracking-wide">Response: </span>
+                            <span className="text-[#3d2f1c]">{pr.response_note}</span>
+                          </div>
+                        )}
+                        {pr.events && pr.events.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-[#8a7a63] uppercase tracking-wide mb-1">History</p>
+                            <ul className="space-y-1">
+                              {pr.events.map(ev => (
+                                <li key={ev.id} className="flex items-start gap-2 text-xs text-[#3d2f1c]">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-primary-400 mt-1.5 flex-shrink-0" />
+                                  <span className="text-gray-400 flex-shrink-0 w-20">{fmt(ev.created_at)}</span>
+                                  <span>
+                                    {ev.old_status ? <><strong>{ev.old_status}</strong> → </> : ''}
+                                    <strong>{ev.new_status}</strong>
+                                    {ev.note ? ` — ${ev.note}` : ''}
+                                    {ev.actor_name ? ` (${ev.actor_name})` : ''}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        {canRespond && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button onClick={() => openModal({ type: 'patient_request', id: pr.id, action: 'accepted', label: pr.patient_name, code: pr.request_code })}
+                              className="px-4 py-2 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700">Accept</button>
+                            <button onClick={() => openModal({ type: 'patient_request', id: pr.id, action: 'call_required', label: pr.patient_name, code: pr.request_code })}
+                              className="px-4 py-2 rounded-xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600">Requires Call</button>
+                            <button onClick={() => openModal({ type: 'patient_request', id: pr.id, action: 'rejected', label: pr.patient_name, code: pr.request_code })}
+                              className="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-medium hover:bg-red-700">Reject</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <Pagination page={prPage} hasNext={prHasNext} total={prTotal}
+            onPrev={() => fetchRequests(prPage - 1)} onNext={() => fetchRequests(prPage + 1)} />
+        </>
+      )}
+
+      {/* ═══════════════════ RESPOND MODAL ═══════════════════ */}
+      {modal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-[#3d2f1c]">
+                  {modal.action === 'accepted' ? '✓ Accept' : modal.action === 'rejected' ? '✕ Reject' : '📞 Requires Call'}
+                </h2>
+                <p className="text-xs text-[#8a7a63] mt-0.5">
+                  {modal.type === 'referral' ? 'Referral' : 'Patient Request'} #{modal.code}
+                  {modal.label ? ` · ${modal.label}` : ''}
+                </p>
+              </div>
+              <button onClick={() => { setModal(null); setModalNote(''); }} className="text-gray-400 hover:text-gray-600"><FiX className="text-xl" /></button>
+            </div>
+
+            {modal.action === 'rejected' && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 mb-4 text-red-700 text-sm">
+                <FiAlertTriangle className="flex-shrink-0" /> A rejection reason is required.
+              </div>
+            )}
+
+            <div className="mb-5">
+              <label className="block text-xs font-semibold text-[#8a7a63] uppercase tracking-wide mb-1.5">
+                {modal.action === 'rejected' ? 'Rejection Reason *' : 'Response Note (optional)'}
+              </label>
+              <textarea value={modalNote} onChange={e => setModalNote(e.target.value)} rows={3}
+                placeholder={
+                  modal.action === 'accepted'      ? 'e.g. ICU bed available — please come immediately.' :
+                  modal.action === 'call_required' ? 'e.g. Please call the ward before arriving.' :
+                  'Enter the reason for rejection…'
+                }
+                className="w-full px-3 py-2.5 rounded-xl border border-[#ede0ce] bg-[#faf6ee] text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => { setModal(null); setModalNote(''); }}
+                className="px-5 py-2.5 rounded-xl border border-[#ede0ce] text-sm text-[#8a7a63] hover:bg-[#faf1e0]">Cancel</button>
+              <button onClick={handleRespond}
+                disabled={submitting || (modal.action === 'rejected' && !modalNote.trim())}
+                className={`px-6 py-2.5 rounded-xl text-white text-sm font-semibold transition-colors disabled:opacity-60 flex items-center gap-2 ${
+                  modal.action === 'accepted' ? 'bg-green-600 hover:bg-green-700' :
+                  modal.action === 'rejected' ? 'bg-red-600 hover:bg-red-700' :
+                  'bg-amber-500 hover:bg-amber-600'
+                }`}>
+                {submitting && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                Confirm
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

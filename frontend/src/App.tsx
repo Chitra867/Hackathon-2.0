@@ -30,6 +30,8 @@ import { UserHospitalMap } from './pages/user/UserHospitalMap';
 import { MyReferrals } from './pages/user/MyReferrals';
 import { UserReferralDetail } from './pages/user/UserReferralDetail';
 import { UserProfile } from './pages/user/UserProfile';
+import { UserRequestHelp } from './pages/user/UserRequestHelp';
+import { UserReferral } from './pages/user/UserReferral';
 
 /* ── HOSPITAL ADMIN ──────────────────────────────────────── */
 import { HADashboard } from './pages/hospitaladmin/HADashboard';
@@ -40,6 +42,8 @@ import { HARefDetail } from './pages/hospitaladmin/HARefDetail';
 import { ReferralHistory } from './pages/hospitaladmin/ReferralHistory';
 import { HospitalProfile } from './pages/hospitaladmin/HospitalProfile';
 import { DoctorManagement } from './pages/hospitaladmin/DoctorManagement';
+import { HAPatientManagement } from './pages/hospitaladmin/HAPatientManagement';
+import { HANewReferral } from './pages/hospitaladmin/HANewReferral';
 
 /* ── SUPER ADMIN ─────────────────────────────────────────── */
 import { AdminDashboard } from './pages/admin/AdminDashboard';
@@ -92,9 +96,11 @@ function App() {
           <Route path="/user/hospitals/:id"     element={<UserHospitalDetail />} />
           <Route path="/user/emergency"         element={<UserEmergencySearch />} />
           <Route path="/user/map"               element={<UserHospitalMap />} />
-          <Route path="/user/referrals"         element={<MyReferrals />} />
-          <Route path="/user/referrals/:id"     element={<UserReferralDetail />} />
-          <Route path="/user/profile"           element={<UserProfile />} />
+          <Route path="/user/referrals"                     element={<MyReferrals />} />
+          <Route path="/user/referrals/:id"             element={<UserReferralDetail />} />
+          <Route path="/user/profile"                   element={<UserProfile />} />
+          <Route path="/user/request-help"              element={<UserRequestHelp />} />
+          <Route path="/user/new-referral"              element={<UserReferral />} />
         </Route>
 
         {/* ── HOSPITAL ADMIN ──────────────────────────────── */}
@@ -108,8 +114,10 @@ function App() {
           <Route path="/hadmin/specialists"        element={<SpecialistEquipment />} />
           <Route path="/hadmin/doctors"            element={<DoctorManagement />} />
           <Route path="/hadmin/referrals"          element={<IncomingReferrals />} />
+          <Route path="/hadmin/referrals/new"      element={<HANewReferral />} />
           <Route path="/hadmin/referrals/:id"      element={<HARefDetail />} />
           <Route path="/hadmin/referral-history"   element={<ReferralHistory />} />
+          <Route path="/hadmin/patients"           element={<HAPatientManagement />} />
           <Route path="/hadmin/profile"            element={<HospitalProfile />} />
         </Route>
 

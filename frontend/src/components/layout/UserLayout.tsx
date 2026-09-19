@@ -3,19 +3,21 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiHome, FiSearch, FiAlertTriangle, FiMap,
   FiList, FiUser, FiLogOut, FiChevronLeft,
-  FiChevronRight, FiActivity,
+  FiChevronRight, FiActivity, FiPlus, FiArrowRight,
 } from 'react-icons/fi';
 import { GiHeartPlus } from 'react-icons/gi';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
 const NAV_ITEMS = [
-  { to: '/user/dashboard',  label: 'Dashboard',      icon: <FiHome /> },
-  { to: '/user/hospitals',  label: 'Find Hospitals',  icon: <FiSearch /> },
-  { to: '/user/emergency',  label: 'Emergency',       icon: <FiAlertTriangle /> },
-  { to: '/user/map',        label: 'Hospital Map',    icon: <FiMap /> },
-  { to: '/user/referrals',  label: 'My Referrals',   icon: <FiList /> },
-  { to: '/user/profile',    label: 'My Profile',      icon: <FiUser /> },
+  { to: '/user/dashboard',      label: 'Dashboard',            icon: <FiHome /> },
+  { to: '/user/hospitals',      label: 'Find Hospitals',       icon: <FiSearch /> },
+  { to: '/user/emergency',      label: 'Emergency',            icon: <FiAlertTriangle /> },
+  { to: '/user/map',            label: 'Hospital Map',         icon: <FiMap /> },
+  { to: '/user/request-help',   label: 'Request Help',         icon: <FiPlus /> },
+  { to: '/user/new-referral',   label: 'Refer to Another',     icon: <FiArrowRight /> },
+  { to: '/user/referrals',      label: 'My Requests',          icon: <FiList /> },
+  { to: '/user/profile',        label: 'My Profile',           icon: <FiUser /> },
 ];
 
 export const UserLayout: React.FC = () => {
@@ -128,19 +130,19 @@ export const UserLayout: React.FC = () => {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#ede0ce] z-30 flex">
-        {NAV_ITEMS.slice(0, 5).map(item => {
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-[#ede0ce] z-30 flex overflow-x-auto">
+        {NAV_ITEMS.map(item => {
           const active = isActive(item.to);
           return (
             <Link
               key={item.to}
               to={item.to}
-              className={`flex-1 flex flex-col items-center justify-center py-2 text-xs transition-colors ${
+              className={`flex-shrink-0 flex flex-col items-center justify-center py-2 px-3 text-xs transition-colors ${
                 active ? 'text-primary-700' : 'text-[#a89a82]'
               }`}
             >
               <span className="text-lg">{item.icon}</span>
-              <span className="mt-0.5 leading-none">{item.label.split(' ')[0]}</span>
+              <span className="mt-0.5 leading-none whitespace-nowrap">{item.label.split(' ')[0]}</span>
             </Link>
           );
         })}

@@ -48,7 +48,8 @@ class ReferralEventSerializer(serializers.ModelSerializer):
 
 class ReferralCreateSerializer(serializers.ModelSerializer):
     """
-    Serializer for health workers creating a referral.
+    Serializer for health workers and hospital admins creating a referral.
+    For hospital_admin: referring_facility is auto-set to their hospital.
     """
     referring_facility = serializers.PrimaryKeyRelatedField(read_only=True)
     destination_facility = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -65,9 +66,20 @@ class ReferralCreateSerializer(serializers.ModelSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from apps.hospitals.models import Hospital, Service
-        self.fields['referring_facility'] = serializers.PrimaryKeyRelatedField(
-            queryset=Hospital.objects.filter(is_active=True)
-        )
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        # hospital_admin: referring_facility defaults to their own hospital (not required in body)
+        if user and user.role in ('hospital_admin', 'hospital_staff'):
+            self.fields['referring_facility'] = serializers.PrimaryKeyRelatedField(
+                queryset=Hospital.objects.filter(is_active=True),
+                required=False,
+            )
+        else:
+            self.fields['referring_facility'] = serializers.PrimaryKeyRelatedField(
+                queryset=Hospital.objects.filter(is_active=True)
+            )
+
         self.fields['destination_facility'] = serializers.PrimaryKeyRelatedField(
             queryset=Hospital.objects.filter(is_active=True)
         )
@@ -78,6 +90,18 @@ class ReferralCreateSerializer(serializers.ModelSerializer):
         )
 
     def validate(self, attrs):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+
+        # Auto-set referring_facility for hospital_admin/staff
+        if user and user.role in ('hospital_admin', 'hospital_staff'):
+            if not attrs.get('referring_facility'):
+                if not user.hospital:
+                    raise serializers.ValidationError(
+                        'Your account is not linked to a hospital.'
+                    )
+                attrs['referring_facility'] = user.hospital
+
         if attrs.get('referring_facility') == attrs.get('destination_facility'):
             raise serializers.ValidationError(
                 'Referring and destination facilities cannot be the same.'

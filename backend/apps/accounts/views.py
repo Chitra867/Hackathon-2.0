@@ -26,7 +26,7 @@ from apps.accounts.serializers import (
     UserCreateSerializer,
     ChangePasswordSerializer,
 )
-from apps.accounts.permissions import IsSystemAdmin
+from apps.accounts.permissions import IsSystemAdmin, IsHospitalAdmin
 from apps.audit.models import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -332,6 +332,48 @@ class ResetPasswordConfirmView(APIView):
         )
 
         return Response({'detail': 'Password has been reset successfully.'}, status=status.HTTP_200_OK)
+
+
+class PatientSearchView(APIView):
+    """
+    GET /api/auth/patients/search/?q=<name_or_phone>
+    Hospital admins can list/search registered patients (role='user').
+    Returns only safe, non-sensitive fields.
+    - No q param → returns all active patients (up to 200), ordered by name.
+    - q param (≥2 chars) → filters by name, username, email, or phone.
+    """
+    permission_classes = [IsAuthenticated, IsHospitalAdmin]
+
+    def get(self, request):
+        from django.db.models import Q
+        q = request.query_params.get('q', '').strip()
+
+        qs = User.objects.filter(role='user', is_active=True).order_by('first_name', 'last_name')
+
+        if q:
+            if len(q) < 2:
+                return Response([], status=status.HTTP_200_OK)
+            qs = qs.filter(
+                Q(first_name__icontains=q) |
+                Q(last_name__icontains=q) |
+                Q(username__icontains=q) |
+                Q(email__icontains=q) |
+                Q(phone__icontains=q)
+            )
+
+        qs = qs[:200]
+
+        data = [
+            {
+                'id': u.id,
+                'full_name': u.full_name,
+                'username': u.username,
+                'phone': u.phone,
+                'email': u.email,
+            }
+            for u in qs
+        ]
+        return Response(data, status=status.HTTP_200_OK)
 
 
 class UserViewSet(viewsets.ModelViewSet):

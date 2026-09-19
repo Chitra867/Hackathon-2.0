@@ -14,6 +14,7 @@ from apps.accounts.views import (
     ForgotPasswordView,
     ResetPasswordConfirmView,
     UserViewSet,
+    PatientSearchView,
 )
 
 router = DefaultRouter()
@@ -27,5 +28,6 @@ urlpatterns = [
     path('change-password/', ChangePasswordView.as_view(), name='auth-change-password'),
     path('forgot-password/', ForgotPasswordView.as_view(), name='auth-forgot-password'),
     path('reset-password-confirm/', ResetPasswordConfirmView.as_view(), name='auth-reset-password-confirm'),
+    path('patients/search/', PatientSearchView.as_view(), name='patient-search'),
     path('', include(router.urls)),
 ]

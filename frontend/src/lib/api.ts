@@ -703,6 +703,30 @@ export const patientRequestsApi = {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Patient Search (Hospital Admin)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface PatientSearchResult {
+  id: number;
+  full_name: string;
+  username: string;
+  phone: string;
+  email: string;
+}
+
+export const patientsApi = {
+  /** Fetch all registered patients (no q) or filter by name/phone/username (q ≥ 2 chars) */
+  list: (q?: string) =>
+    api.get<PatientSearchResult[]>('/auth/patients/search/', {
+      params: q ? { q } : undefined,
+    }),
+  /** @deprecated use list() */
+  search: (q: string) =>
+    api.get<PatientSearchResult[]>('/auth/patients/search/', { params: { q } }),
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // User Portal Endpoints
 // ─────────────────────────────────────────────────────────────────────────────
 

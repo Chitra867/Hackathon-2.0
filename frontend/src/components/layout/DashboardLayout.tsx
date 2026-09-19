@@ -4,7 +4,7 @@ import { Navbar } from './Navbar';
 import {
   FiHome, FiList, FiActivity,
   FiUsers, FiSettings, FiFileText, FiChevronLeft, FiChevronRight,
-  FiBarChart2, FiMapPin, FiClock, FiShield, FiUser, FiInbox,
+  FiBarChart2, FiMapPin, FiClock, FiShield, FiUser, FiInbox, FiArrowRight,
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore';
 
@@ -28,13 +28,13 @@ const getNavItems = (role: string): NavItem[] => {
     case 'hospital_admin':
     case 'hospital_staff':
       return [
-        { to: '/hadmin/dashboard',        label: 'Dashboard',           icon: <FiHome /> },
-        { to: '/hadmin/availability',     label: 'Availability',        icon: <FiActivity /> },
-        { to: '/hadmin/specialists',      label: 'Specialists & Equip', icon: <FiUsers /> },
-        { to: '/hadmin/doctors',          label: 'Doctors',             icon: <FiUser /> },
-        { to: '/hadmin/referrals',        label: 'Referrals',           icon: <FiList /> },
-        { to: '/hadmin/referral-history', label: 'Referral History',    icon: <FiClock /> },
-        { to: '/hadmin/profile',          label: 'Hospital Profile',    icon: <FiSettings /> },
+        { to: '/hadmin/dashboard',        label: 'Dashboard',        icon: <FiHome /> },
+        { to: '/hadmin/patients',         label: 'Patients',         icon: <FiUsers /> },
+        { to: '/hadmin/referrals',        label: 'Referrals',        icon: <FiList /> },
+        { to: '/hadmin/referrals/new',    label: 'New Referral',     icon: <FiArrowRight /> },
+        { to: '/hadmin/availability',     label: 'Availability',     icon: <FiActivity /> },
+        { to: '/hadmin/doctors',          label: 'Doctors',          icon: <FiUser /> },
+        { to: '/hadmin/profile',          label: 'Hospital Profile', icon: <FiSettings /> },
       ];
     default:
       return [];

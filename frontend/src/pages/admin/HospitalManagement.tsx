@@ -6,15 +6,6 @@ import { hospitalsApi } from '../../lib/api';
 import type { HospitalListItem } from '../../types';
 import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 
-const VerificationBadge: React.FC<{ status: string }> = ({ status }) => {
-  const map: Record<string, string> = {
-    verified: 'bg-green-100 text-green-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-    rejected: 'bg-red-100 text-red-700',
-  };
-  return <span className={`badge ${map[status] ?? 'bg-gray-100 text-gray-600'}`}>{status}</span>;
-};
-
 export const HospitalManagement: React.FC = () => {
   const [hospitals, setHospitals] = useState<HospitalListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,14 +75,13 @@ export const HospitalManagement: React.FC = () => {
                   <th>Hospital</th>
                   <th className="hidden sm:table-cell">Type</th>
                   <th className="hidden md:table-cell">District</th>
-                  <th>Verification</th>
                   <th>Active</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="text-center py-8 text-gray-500">No hospitals found.</td></tr>
+                  <tr><td colSpan={5} className="text-center py-8 text-gray-500">No hospitals found.</td></tr>
                 ) : filtered.map((h) => (
                   <tr key={h.id}>
                     <td>
@@ -100,7 +90,6 @@ export const HospitalManagement: React.FC = () => {
                     </td>
                     <td className="hidden sm:table-cell text-gray-600 capitalize">{h.type_display || h.type}</td>
                     <td className="hidden md:table-cell text-gray-600">{h.district}</td>
-                    <td><VerificationBadge status={h.verification_status} /></td>
                     <td>
                       <button
                         onClick={() => handleToggle(h)}
