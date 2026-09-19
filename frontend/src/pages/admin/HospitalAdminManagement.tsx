@@ -8,7 +8,7 @@ import React, {
 
 import {
   FiPlus, FiX, FiEdit2, FiSearch, FiRefreshCw,
-  FiUser, FiMail, FiPhone, FiLock, FiEye, FiEyeOff, FiUsers,
+  FiUser, FiMail, FiPhone, FiLock, FiEye, FiEyeOff, FiUsers, FiAlertCircle,
 } from 'react-icons/fi';
 
 import toast from 'react-hot-toast';
@@ -176,8 +176,6 @@ const fetchAllPages = async <T,>(
 ): Promise<T[]> => {
   const allItems: T[] = [];
 
-  const seenPages = new Set<string>();
-
   let page = 1;
 
   let hasNextPage = true;
@@ -244,6 +242,19 @@ const fetchAllPages = async <T,>(
         'Unexpected API response format.',
       );
     }
+
+    allItems.push(...pageItems);
+
+    // Stop on the last page or a malformed empty page.
+    if (!nextPage || pageItems.length === 0) {
+      hasNextPage = false;
+    } else {
+      page += 1;
+    }
+  }
+
+  return allItems;
+};
 
 // ─── Shared field chrome ────────────────────────────────────────────────────
 
@@ -1027,7 +1038,7 @@ export const HospitalAdminManagement: React.FC = () => {
           {/* REFRESH */}
 
           <button
-            onClick={loadData}
+            onClick={() => void loadData()}
             className="p-2.5 text-[#538b8c] hover:text-[#216d73] bg-white border border-[#e5dcc8] hover:border-[#aabfb9] rounded-lg transition-colors"
             title="Refresh"
             aria-label="Refresh user list"
@@ -1144,7 +1155,7 @@ export const HospitalAdminManagement: React.FC = () => {
         </div>
       ) : (
         <div className="bg-white border border-[#e5dcc8] rounded-xl overflow-hidden">
-          {filtered.length === 0 ? (
+          {filteredUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 text-center px-4">
               <div className="w-12 h-12 rounded-full bg-[#eef3f2] flex items-center justify-center mb-3">
                 <FiUsers className="text-xl text-[#538b8c]" />
@@ -1171,7 +1182,7 @@ export const HospitalAdminManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f2ece0]">
-                  {filtered.map((u) => (
+                  {filteredUsers.map((u) => (
                     <tr key={u.id} className="hover:bg-[#faedd7]/40 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -1199,7 +1210,7 @@ export const HospitalAdminManagement: React.FC = () => {
                           onClick={() => openEdit(u)}
                           className="p-2 text-[#538b8c] hover:text-[#216d73] hover:bg-[#eef3f2] rounded-lg transition-colors"
                           title="Edit user"
-                          aria-label={`Edit ${user.username}`}
+                          aria-label={`Edit ${u.username}`}
                         >
                           <FiEdit2 />
                         </button>
@@ -1212,7 +1223,7 @@ export const HospitalAdminManagement: React.FC = () => {
             </div>
           )}
           <div className="px-4 py-2.5 border-t border-[#f2ece0] text-xs text-[#8a8078]">
-            {filtered.length} of {users.length} users
+            {filteredUsers.length} of {users.length} users
           </div>
 
         </div>
@@ -1274,6 +1285,7 @@ export const HospitalAdminManagement: React.FC = () => {
                     className={inputClass}
                     placeholder="e.g. bir_hospital_admin"
                     value={form.username}
+                    ref={usernameInputRef}
                     onChange={(event) =>
                       setField(
                         'username',
@@ -1512,7 +1524,6 @@ export const HospitalAdminManagement: React.FC = () => {
                   type="submit"
                   className="flex-1 inline-flex items-center justify-center gap-2 bg-[#216d73] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#184f54] disabled:opacity-60 transition-colors"
                   disabled={saving}
-                  className="btn-primary flex flex-1 items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {saving ? (
                     <>
@@ -1536,7 +1547,6 @@ export const HospitalAdminManagement: React.FC = () => {
                   onClick={closeModal}
                   className="px-4 py-2.5 rounded-lg text-sm font-medium text-[#1c3d3f] border border-[#e5dcc8] hover:bg-[#faf6ee] transition-colors"
                   disabled={saving}
-                  className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1554,3 +1564,5 @@ export const HospitalAdminManagement: React.FC = () => {
     </div>
   );
 };
+
+export default HospitalAdminManagement;
