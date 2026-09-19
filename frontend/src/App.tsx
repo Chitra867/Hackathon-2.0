@@ -60,7 +60,41 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      
+<Toaster
+  position="top-center"
+  reverseOrder={false}
+  gutter={12}
+  containerStyle={{
+    top: 85,
+    zIndex: 9999,
+  }}
+  toastOptions={{
+    duration: 3000,
+    style: {
+      background: '#ffffff',
+      color: '#173c40',
+      borderRadius: '14px',
+      padding: '14px 20px',
+      fontSize: '14px',
+      fontWeight: 500,
+      border: '1px solid #e5eae5',
+      boxShadow: '0 8px 30px rgba(0, 0, 0, 0.10)',
+    },
+    success: {
+      iconTheme: {
+        primary: '#0e7775',
+        secondary: '#ffffff',
+      },
+    },
+    error: {
+      iconTheme: {
+        primary: '#dc4545',
+        secondary: '#ffffff',
+      },
+    },
+  }}
+/>
 
       <Routes>
 
