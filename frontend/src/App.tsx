@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+
 import { useAuthStore } from './store/authStore';
+
 import { Layout } from './components/layout/Layout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
@@ -106,7 +108,9 @@ function App() {
 
         <Route
           element={
-            <ProtectedRoute allowedRoles={['hospital_admin', 'hospital_staff']}>
+            <ProtectedRoute
+              allowedRoles={['health_worker']}
+            >
               <DashboardLayout />
             </ProtectedRoute>
           }

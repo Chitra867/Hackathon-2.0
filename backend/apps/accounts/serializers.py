@@ -21,13 +21,12 @@ class UserSerializer(serializers.ModelSerializer):
     """Full user serializer for admin use."""
     hospital_detail = HospitalMinimalSerializer(source='hospital', read_only=True)
     full_name = serializers.ReadOnlyField()
-    role_display = serializers.ReadOnlyField(source='get_role_display')
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'full_name', 'role', 'role_display', 'hospital', 'hospital_detail',
+            'full_name', 'role', 'hospital', 'hospital_detail',
             'phone', 'is_verified', 'is_active', 'date_joined', 'last_login',
         ]
         read_only_fields = ['date_joined', 'last_login']
@@ -124,12 +123,6 @@ class LoginSerializer(serializers.Serializer):
         if not user.is_verified:
             raise serializers.ValidationError('Account not yet verified.')
 
-        # System admins must use the Django admin panel at /admin/ — not this login
-        if user.role == 'system_admin':
-            raise serializers.ValidationError(
-                'System administrators must log in at the Admin Panel (/admin/).'
-            )
-
         attrs['user'] = user
         return attrs
 
@@ -138,22 +131,15 @@ class ProfileSerializer(serializers.ModelSerializer):
     """Serializer for viewing/updating the authenticated user's profile."""
     hospital_detail = HospitalMinimalSerializer(source='hospital', read_only=True)
     full_name = serializers.ReadOnlyField()
-    role_display = serializers.ReadOnlyField(source='get_role_display')
-    hospital_name = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             'id', 'username', 'email', 'first_name', 'last_name',
-            'full_name', 'role', 'role_display', 'hospital', 'hospital_name', 'hospital_detail',
+            'full_name', 'role', 'hospital', 'hospital_detail',
             'phone', 'is_verified', 'date_joined', 'last_login',
         ]
         read_only_fields = ['username', 'role', 'is_verified', 'date_joined', 'last_login']
-
-    def get_hospital_name(self, obj):
-        if obj.hospital:
-            return obj.hospital.name
-        return None
 
 
 class ChangePasswordSerializer(serializers.Serializer):
@@ -223,56 +209,3 @@ class UserCreateSerializer(serializers.ModelSerializer):
         user.set_password(password)
         user.save()
         return user
-
-
-class UserUpdateSerializer(serializers.ModelSerializer):
-    """
-    Admin-only serializer for updating existing users.
-    Password is optional — only changed if provided.
-    """
-    password = serializers.CharField(
-        write_only=True,
-        required=False,
-        allow_blank=True,
-        style={'input_type': 'password'}
-    )
-    hospital_detail = HospitalMinimalSerializer(source='hospital', read_only=True)
-    full_name = serializers.ReadOnlyField()
-    role_display = serializers.ReadOnlyField(source='get_role_display')
-    hospital = serializers.PrimaryKeyRelatedField(
-        required=False,
-        allow_null=True,
-        read_only=True  # queryset is set dynamically in __init__
-    )
-
-    class Meta:
-        model = User
-        fields = [
-            'id', 'username', 'email', 'first_name', 'last_name',
-            'full_name', 'role', 'role_display', 'hospital', 'hospital_detail',
-            'phone', 'password', 'is_verified', 'is_active', 'date_joined', 'last_login',
-        ]
-        read_only_fields = ['id', 'username', 'date_joined', 'last_login']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        from apps.hospitals.models import Hospital
-        self.fields['hospital'] = serializers.PrimaryKeyRelatedField(
-            required=False,
-            allow_null=True,
-            queryset=Hospital.objects.all()
-        )
-
-    def validate_password(self, value):
-        if value:
-            validate_password(value)
-        return value
-
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        if password:
-            instance.set_password(password)
-        instance.save()
-        return instance

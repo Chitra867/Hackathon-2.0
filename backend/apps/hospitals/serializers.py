@@ -3,32 +3,48 @@ Serializers for hospitals app.
 """
 
 from rest_framework import serializers
-from apps.hospitals.models import Hospital, Service, HospitalService, Availability
+
+from apps.hospitals.models import (
+    Hospital,
+    Service,
+    HospitalService,
+    Availability,
+)
 
 
 class ServiceSerializer(serializers.ModelSerializer):
     """Serializer for Service model."""
 
-    category_display = serializers.ReadOnlyField(source='get_category_display')
+    category_display = serializers.ReadOnlyField(
+        source='get_category_display'
+    )
 
     class Meta:
         model = Service
         fields = [
-            'id', 'name', 'category', 'category_display',
-            'description', 'is_active',
+            'id',
+            'name',
+            'category',
+            'category_display',
+            'description',
+            'is_active',
         ]
 
 
 class ServiceMinimalSerializer(serializers.ModelSerializer):
-    """Minimal service info for nested use."""
+    """Minimal service information for nested use."""
 
     class Meta:
         model = Service
-        fields = ['id', 'name', 'category']
+        fields = [
+            'id',
+            'name',
+            'category',
+        ]
 
 
 class HospitalServiceSerializer(serializers.ModelSerializer):
-    """Serializer for HospitalService model."""
+    """Serializer for services associated with a hospital."""
 
     service_detail = ServiceMinimalSerializer(
         source='service',
@@ -38,8 +54,12 @@ class HospitalServiceSerializer(serializers.ModelSerializer):
     class Meta:
         model = HospitalService
         fields = [
-            'id', 'hospital', 'service', 'service_detail',
-            'is_available', 'notes',
+            'id',
+            'hospital',
+            'service',
+            'service_detail',
+            'is_available',
+            'notes',
         ]
         read_only_fields = ['id']
 
@@ -49,10 +69,13 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 
     freshness_label = serializers.ReadOnlyField()
     age_minutes = serializers.ReadOnlyField()
+
     availability_type_display = serializers.ReadOnlyField(
         source='get_availability_type_display'
     )
-    status_display = serializers.ReadOnlyField(source='get_status_display')
+    status_display = serializers.ReadOnlyField(
+        source='get_status_display'
+    )
     service_detail = ServiceMinimalSerializer(
         source='service',
         read_only=True,
@@ -62,15 +85,30 @@ class AvailabilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Availability
         fields = [
-            'id', 'hospital', 'service', 'service_detail',
-            'availability_type', 'availability_type_display',
-            'status', 'status_display',
-            'available_count', 'total_count', 'notes',
-            'updated_at', 'updated_by', 'updated_by_username',
-            'source', 'is_active',
-            'freshness_label', 'age_minutes',
+            'id',
+            'hospital',
+            'service',
+            'service_detail',
+            'availability_type',
+            'availability_type_display',
+            'status',
+            'status_display',
+            'available_count',
+            'total_count',
+            'notes',
+            'updated_at',
+            'updated_by',
+            'updated_by_username',
+            'source',
+            'is_active',
+            'freshness_label',
+            'age_minutes',
         ]
-        read_only_fields = ['updated_at', 'updated_by', 'source']
+        read_only_fields = [
+            'updated_at',
+            'updated_by',
+            'source',
+        ]
 
     def get_updated_by_username(self, obj):
         if obj.updated_by:
@@ -79,17 +117,23 @@ class AvailabilitySerializer(serializers.ModelSerializer):
 
 
 class AvailabilityWriteSerializer(serializers.ModelSerializer):
-    """Write serializer for creating/updating availability."""
+    """Write serializer for creating and updating availability."""
 
     class Meta:
         model = Availability
         fields = [
-            'hospital', 'service', 'availability_type',
-            'status', 'available_count', 'total_count', 'notes', 'is_active',
+            'hospital',
+            'service',
+            'availability_type',
+            'status',
+            'available_count',
+            'total_count',
+            'notes',
+            'is_active',
         ]
 
     def validate(self, attrs):
-        # Use existing values when a partial update omits either count.
+        # Use existing values when PATCH omits either count.
         available_count = attrs.get(
             'available_count',
             getattr(self.instance, 'available_count', None),
@@ -99,7 +143,7 @@ class AvailabilityWriteSerializer(serializers.ModelSerializer):
             getattr(self.instance, 'total_count', None),
         )
 
-        # Validate counts for every user, including system admins.
+        # Apply count validation to every user.
         if (
             available_count is not None
             and total_count is not None
@@ -108,10 +152,11 @@ class AvailabilityWriteSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({
                 'available_count': (
                     'Available count cannot exceed total count.'
-                )
+                ),
             })
 
         request = self.context.get('request')
+
         if not request:
             return attrs
 
@@ -124,7 +169,7 @@ class AvailabilityWriteSerializer(serializers.ModelSerializer):
         if user.role == 'system_admin':
             return attrs
 
-        # Hospital staff/admin can only update their own hospital.
+        # Hospital staff/admins can only update their own hospital.
         if user.role in ('hospital_staff', 'hospital_admin'):
             if user.hospital is None:
                 raise serializers.ValidationError(
@@ -140,9 +185,11 @@ class AvailabilityWriteSerializer(serializers.ModelSerializer):
 
     def save(self, **kwargs):
         request = self.context.get('request')
+
         if request:
             kwargs['updated_by'] = request.user
             kwargs['source'] = 'manual'
+
         return super().save(**kwargs)
 
 
@@ -156,86 +203,62 @@ class BulkAvailabilitySerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 'At least one update is required.'
             )
+
         if len(value) > 50:
             raise serializers.ValidationError(
                 'Maximum 50 updates per request.'
             )
+
         return value
 
 
-class HospitalServiceListSerializer(serializers.ModelSerializer):
-    """Compact hospital-service for list views — only the fields the search card needs."""
-    service_name = serializers.ReadOnlyField(source='service.name')
-    service_category = serializers.ReadOnlyField(source='service.category')
-
-    class Meta:
-        model = HospitalService
-        fields = ['id', 'service', 'service_name', 'service_category', 'is_available', 'notes']
-
-
-class AvailabilityListSerializer(serializers.ModelSerializer):
-    """Compact availability for list views."""
-    freshness_label = serializers.ReadOnlyField()
-    age_minutes = serializers.ReadOnlyField()
-    availability_type_display = serializers.ReadOnlyField(source='get_availability_type_display')
-    status_display = serializers.ReadOnlyField(source='get_status_display')
-    service_name = serializers.ReadOnlyField(source='service.name')
-    updated_by_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Availability
-        fields = [
-            'id', 'availability_type', 'availability_type_display',
-            'status', 'status_display',
-            'service', 'service_name',
-            'available_count', 'total_count', 'notes',
-            'updated_at', 'updated_by_name',
-            'source', 'is_active',
-            'freshness_label', 'age_minutes',
-        ]
-
-    def get_updated_by_name(self, obj):
-        if obj.updated_by:
-            return obj.updated_by.get_full_name() or obj.updated_by.username
-        return None
-
-
 class HospitalSerializer(serializers.ModelSerializer):
-    """List serializer for Hospital model — includes services and availability for search page."""
+    """List serializer for hospitals."""
 
-    type_display = serializers.ReadOnlyField(source='get_type_display')
+    type_display = serializers.ReadOnlyField(
+        source='get_type_display'
+    )
     verification_status_display = serializers.ReadOnlyField(
         source='get_verification_status_display'
     )
-    services = serializers.SerializerMethodField()
-    availability = serializers.SerializerMethodField()
+    services_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Hospital
         fields = [
-            'id', 'name', 'type', 'type_display',
-            'address', 'district', 'municipality',
-            'latitude', 'longitude',
-            'phone', 'email', 'website', 'emergency_contact',
-            'verification_status', 'verification_status_display',
-            'is_active', 'created_at',
-            'services', 'availability',
+            'id',
+            'name',
+            'type',
+            'type_display',
+            'address',
+            'district',
+            'municipality',
+            'latitude',
+            'longitude',
+            'phone',
+            'email',
+            'website',
+            'emergency_contact',
+            'verification_status',
+            'verification_status_display',
+            'is_active',
+            'created_at',
+            'services_count',
         ]
         read_only_fields = ['created_at']
 
-    def get_services(self, obj):
-        qs = obj.hospital_services.select_related('service')
-        return HospitalServiceListSerializer(qs, many=True).data
-
-    def get_availability(self, obj):
-        qs = obj.availability_records.filter(is_active=True).select_related('service', 'updated_by')
-        return AvailabilityListSerializer(qs, many=True).data
+    def get_services_count(self, obj):
+        return obj.hospital_services.filter(
+            is_available=True
+        ).count()
 
 
 class HospitalDetailSerializer(serializers.ModelSerializer):
-    """Detail serializer for Hospital with services and current availability."""
+    """Hospital details, including services and active availability."""
 
-    type_display = serializers.ReadOnlyField(source='get_type_display')
+    type_display = serializers.ReadOnlyField(
+        source='get_type_display'
+    )
     verification_status_display = serializers.ReadOnlyField(
         source='get_verification_status_display'
     )
@@ -245,41 +268,120 @@ class HospitalDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hospital
         fields = [
-            'id', 'name', 'type', 'type_display',
-            'address', 'district', 'municipality',
-            'latitude', 'longitude',
-            'phone', 'email', 'website', 'emergency_contact',
-            'verification_status', 'verification_status_display',
-            'is_active', 'created_at',
-            'services', 'availability',
+            'id',
+            'name',
+            'type',
+            'type_display',
+            'address',
+            'district',
+            'municipality',
+            'latitude',
+            'longitude',
+            'phone',
+            'email',
+            'website',
+            'emergency_contact',
+            'verification_status',
+            'verification_status_display',
+            'is_active',
+            'created_at',
+            'services',
+            'availability',
         ]
 
     def get_services(self, obj):
-        qs = obj.hospital_services.select_related('service')
-        return HospitalServiceListSerializer(qs, many=True).data
+        queryset = obj.hospital_services.filter(
+            is_available=True
+        ).select_related('service')
+
+        return HospitalServiceSerializer(
+            queryset,
+            many=True,
+            context=self.context,
+        ).data
 
     def get_availability(self, obj):
-        qs = obj.availability_records.filter(
+        queryset = obj.availability_records.filter(
             is_active=True
-        ).select_related('service', 'updated_by')
-        return AvailabilityListSerializer(qs, many=True).data
+        ).select_related(
+            'service',
+            'updated_by',
+        )
+
+        return AvailabilitySerializer(
+            queryset,
+            many=True,
+            context=self.context,
+        ).data
 
 
 class HospitalWriteSerializer(serializers.ModelSerializer):
-    """Write serializer for creating/updating hospitals."""
+    """Hospital creation and editing for system administrators."""
 
     class Meta:
         model = Hospital
         fields = [
-            'name', 'type', 'address', 'district', 'municipality',
-            'latitude', 'longitude',
-            'phone', 'email', 'website', 'emergency_contact',
-            'verification_status', 'is_active',
+            'name',
+            'type',
+            'address',
+            'district',
+            'municipality',
+            'latitude',
+            'longitude',
+            'phone',
+            'email',
+            'website',
+            'emergency_contact',
+            'verification_status',
+            'is_active',
         ]
 
     def validate_name(self, value):
-        if len(value.strip()) < 3:
+        value = value.strip()
+
+        if len(value) < 3:
             raise serializers.ValidationError(
                 'Hospital name must be at least 3 characters.'
             )
-        return value.strip()
+
+        return value
+
+
+class HospitalProfileWriteSerializer(serializers.ModelSerializer):
+    """Restrict hospital-admin edits to contact and address fields."""
+
+    class Meta:
+        model = Hospital
+        fields = [
+            'address',
+            'municipality',
+            'phone',
+            'emergency_contact',
+            'email',
+            'website',
+        ]
+
+    def to_internal_value(self, data):
+        # Reject attempts to change fields such as verification_status,
+        # is_active, name, or any other field outside this serializer.
+        if hasattr(data, 'keys'):
+            forbidden = set(data.keys()) - set(self.fields)
+
+            if forbidden:
+                raise serializers.ValidationError({
+                    field: (
+                        'This field cannot be edited through '
+                        'your hospital profile.'
+                    )
+                    for field in forbidden
+                })
+
+        return super().to_internal_value(data)
+
+    def validate_website(self, value):
+        if value and not value.lower().startswith(('http://', 'https://')):
+            raise serializers.ValidationError(
+                'Use an http:// or https:// website URL.'
+            )
+
+        return value
