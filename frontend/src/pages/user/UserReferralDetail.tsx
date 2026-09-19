@@ -74,6 +74,7 @@ export const UserReferralDetail: React.FC = () => {
   const canCancel = !['accepted', 'rejected', 'cancelled'].includes(request.status);
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-4 pb-24 md:pb-6">
       {/* Back */}
       <button onClick={() => navigate('/user/referrals')} className="flex items-center gap-1 text-sm text-[#8a7a63] hover:text-primary-700 transition-colors">
@@ -197,6 +198,7 @@ export const UserReferralDetail: React.FC = () => {
           </button>
         )}
       </div>
+    </div>
     </div>
   );
 };

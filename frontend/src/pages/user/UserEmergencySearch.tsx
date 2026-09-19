@@ -78,6 +78,7 @@ export const UserEmergencySearch: React.FC = () => {
   };
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="p-4 md:p-6 max-w-5xl mx-auto pb-24 md:pb-6 space-y-5">
       {/* Hero */}
       <div className="bg-gradient-to-br from-red-600 to-red-700 rounded-2xl p-5 text-white shadow">
@@ -185,6 +186,7 @@ export const UserEmergencySearch: React.FC = () => {
           </div>
         </>
       )}
+    </div>
     </div>
   );
 };

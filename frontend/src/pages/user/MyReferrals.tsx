@@ -47,6 +47,7 @@ export const MyReferrals: React.FC = () => {
   useEffect(() => { fetchRequests(1); }, [fetchRequests]);
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4 pb-24 md:pb-6">
       <h1 className="text-xl font-bold text-[#172554]">My Referral Requests</h1>
 
@@ -150,6 +151,7 @@ export const MyReferrals: React.FC = () => {
           )}
         </>
       )}
+    </div>
     </div>
   );
 };

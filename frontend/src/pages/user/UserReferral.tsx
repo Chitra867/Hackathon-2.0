@@ -192,6 +192,7 @@ export const UserReferral: React.FC = () => {
   };
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-4 pb-24 md:pb-6">
       {/* Page header */}
       <div className="bg-white rounded-2xl border border-[#ede0ce] shadow-sm p-5">
@@ -372,6 +373,7 @@ export const UserReferral: React.FC = () => {
           </form>
         )}
       </div>
+    </div>
     </div>
   );
 };

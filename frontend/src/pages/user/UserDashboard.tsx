@@ -155,6 +155,7 @@ export const UserDashboard: React.FC = () => {
   const displayName = data?.user?.full_name || user?.first_name || user?.username || 'User';
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6 pb-24 md:pb-6">
       {/* Welcome banner with search */}
       <div className="bg-gradient-to-br from-primary-700 to-primary-800 rounded-2xl p-6 text-white shadow">
@@ -314,6 +315,7 @@ export const UserDashboard: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };
