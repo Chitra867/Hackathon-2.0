@@ -10,8 +10,10 @@ import {
 } from 'react-icons/fi';
 import { GiHeartPlus } from 'react-icons/gi';
 import toast from 'react-hot-toast';
+
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
+
 
 export const Navbar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -28,14 +30,25 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+
+  /* =========================================================
+     LOGOUT
+  ========================================================= */
+
   const handleLogout = async () => {
     await logout();
 
     toast.success('Logged out successfully');
 
     navigate('/');
+
     setMenuOpen(false);
   };
+
+
+  /* =========================================================
+     NAVIGATION LINKS
+  ========================================================= */
 
   const navLinks = [
     { to: '/search', label: 'Find Hospital' },
@@ -103,8 +116,11 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center gap-2">
 
             {isAuthenticated() ? (
+
               <>
+
                 {/* Notifications */}
+
                 <button
                   type="button"
                   className="relative flex h-10 w-10 items-center justify-center rounded-full text-[#64748b] transition hover:bg-[#edf5f3] hover:text-[#07545e]"
@@ -116,6 +132,7 @@ export const Navbar: React.FC = () => {
                     <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
                       {unreadCount() > 9 ? '9+' : unreadCount()}
                     </span>
+
                   )}
                 </button>
 
@@ -138,7 +155,9 @@ export const Navbar: React.FC = () => {
                         {user?.role_display ||
                           user?.role?.replace(/_/g, ' ')}
                       </div>
+
                     </div>
+
                   </Link>
 
                   <button
@@ -150,8 +169,11 @@ export const Navbar: React.FC = () => {
                   >
                     <FiLogOut />
                   </button>
+
                 </div>
+
               </>
+
             ) : (
               /* Login + Signup */
               <div className="hidden items-center gap-2 md:flex">
@@ -170,7 +192,9 @@ export const Navbar: React.FC = () => {
                   <FiUserPlus />
                   Sign Up
                 </Link>
+
               </div>
+
             )}
 
             {/* Mobile Menu Button */}
@@ -180,9 +204,13 @@ export const Navbar: React.FC = () => {
               className="flex h-10 w-10 items-center justify-center rounded-full text-[#475569] transition hover:bg-[#f4efe5] md:hidden"
               aria-label="Toggle menu"
             >
-              {menuOpen ? <FiX /> : <FiMenu />}
+              {menuOpen
+                ? <FiX />
+                : <FiMenu />}
             </button>
+
           </div>
+
         </div>
 
         {/* Mobile Menu */}
@@ -223,7 +251,9 @@ export const Navbar: React.FC = () => {
                       {user?.role_display ||
                         user?.role?.replace(/_/g, ' ')}
                     </div>
+
                   </div>
+
                 </div>
 
                 <button
@@ -258,9 +288,13 @@ export const Navbar: React.FC = () => {
 
               </div>
             )}
+
           </div>
+
         )}
+
       </div>
+
     </header>
   );
 };

@@ -10,14 +10,13 @@ export const Footer: React.FC = () => (
         <div className="flex items-center gap-2">
           <GiHeartPlus className="text-xl text-primary-700" />
           <span className="font-semibold text-gray-800">UpacharKhoj Nepal</span>
-        </div>
+          © 2026 UpacharKhoj Nepal. Healthcare availability and referral coordination platform.
 
 
 
 
       </div>
       <div className="mt-4 pt-4 border-t border-gray-100 text-center text-xs text-gray-400">
-        © 2026 UpacharKhoj Nepal. Healthcare availability and referral coordination platform.
       </div>
     </div>
   </footer>

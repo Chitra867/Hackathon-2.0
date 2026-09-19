@@ -20,7 +20,6 @@ import { AboutPage } from './pages/public/AboutPage';
 
 /* =========================================================
    HEALTH WORKER
-========================================================= */
 
 import { HWDashboard } from './pages/healthworker/HWDashboard';
 import { HWReferrals } from './pages/healthworker/HWReferrals';
