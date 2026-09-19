@@ -90,17 +90,22 @@ export const UserHospitalSearch: React.FC = () => {
   }, [doSearch]);
 
   // Debounced search on filter change (q, district, emergency)
+  // Update local filter state; debounce only for text (q) changes.
+  // District / emergency changes go through onSearch directly (SearchFilters calls onSearch inline).
   const handleFiltersChange = (newFilters: SearchFiltersState) => {
     setFilters(newFilters);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      doSearch(1, newFilters);
-    }, 400);
+    // Only debounce-search when the text query changes (typing in the input)
+    if (newFilters.q !== filtersRef.current.q) {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        doSearch(1, newFilters);
+      }, 400);
+    }
   };
 
-  const handleSearchButton = () => {
+  const handleSearchButton = (f?: SearchFiltersState) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    doSearch(1);
+    doSearch(1, f ?? filtersRef.current);
   };
 
   const handleGetDirections = async (hospital: HospitalSearchResult) => {
@@ -139,6 +144,7 @@ export const UserHospitalSearch: React.FC = () => {
   const showEmpty = hasSearched && !loading && !error && results.length === 0;
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-4 pb-24 md:pb-6">
       <h1 className="text-xl font-bold text-[#172554]">Find Hospitals</h1>
 
@@ -268,6 +274,7 @@ export const UserHospitalSearch: React.FC = () => {
           )}
         </>
       )}
+    </div>
     </div>
   );
 };

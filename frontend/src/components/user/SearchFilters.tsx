@@ -28,18 +28,19 @@ export interface SearchFiltersState {
 interface Props {
   filters: SearchFiltersState;
   onChange: (filters: SearchFiltersState) => void;
-  onSearch: () => void;
+  /** Called with the current filters when user triggers a search. */
+  onSearch: (filters: SearchFiltersState) => void;
   onSuggestionSelect?: (suggestion: SearchSuggestion) => void;
   loading?: boolean;
 }
 
 function SuggestionIcon({ type }: { type: SearchSuggestion['type'] }) {
   switch (type) {
-    case 'hospital':   return <FaHospital className="text-primary-600 flex-shrink-0" />;
-    case 'service':    return <MdMedicalServices className="text-green-600 flex-shrink-0" />;
-    case 'specialty':  return <MdLocalHospital className="text-amber-600 flex-shrink-0" />;
-    case 'district':   return <FiMapPin className="text-blue-500 flex-shrink-0" />;
-    default:           return <FiSearch className="text-gray-400 flex-shrink-0" />;
+    case 'hospital':  return <FaHospital className="text-primary-600 flex-shrink-0" />;
+    case 'service':   return <MdMedicalServices className="text-green-600 flex-shrink-0" />;
+    case 'specialty': return <MdLocalHospital className="text-amber-600 flex-shrink-0" />;
+    case 'district':  return <FiMapPin className="text-blue-500 flex-shrink-0" />;
+    default:          return <FiSearch className="text-gray-400 flex-shrink-0" />;
   }
 }
 
@@ -53,9 +54,19 @@ function typeLabel(type: SearchSuggestion['type']) {
   }
 }
 
-export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, onSuggestionSelect, loading }) => {
-  const set = (partial: Partial<SearchFiltersState>) =>
-    onChange({ ...filters, ...partial });
+export const SearchFilters: React.FC<Props> = ({
+  filters,
+  onChange,
+  onSearch,
+  onSuggestionSelect,
+  loading,
+}) => {
+  /** Merge partial updates into current filters and notify parent. */
+  const update = (partial: Partial<SearchFiltersState>) => {
+    const next = { ...filters, ...partial };
+    onChange(next);
+    return next; // return so callers can forward immediately
+  };
 
   const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -65,11 +76,7 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
 
   const fetchSuggestions = useCallback((q: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (q.length < 2) {
-      setSuggestions([]);
-      setShowDropdown(false);
-      return;
-    }
+    if (q.length < 2) { setSuggestions([]); setShowDropdown(false); return; }
     debounceRef.current = setTimeout(async () => {
       try {
         const res = await userPortalApi.getSearchSuggestions(q);
@@ -85,24 +92,29 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    set({ q: val });
+    update({ q: val });
     fetchSuggestions(val);
   };
 
   const handleSelect = (suggestion: SearchSuggestion) => {
-    set({ q: suggestion.label });
+    const next = update({ q: suggestion.label });
     setSuggestions([]);
     setShowDropdown(false);
     if (onSuggestionSelect) {
       onSuggestionSelect(suggestion);
     } else {
-      setTimeout(() => onSearch(), 0);
+      onSearch(next);
     }
+  };
+
+  const handleSearchButton = () => {
+    setShowDropdown(false);
+    onSearch(filters); // filters is always the latest prop value
   };
 
   const handleKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!showDropdown) {
-      if (e.key === 'Enter') onSearch();
+      if (e.key === 'Enter') { e.preventDefault(); handleSearchButton(); }
       return;
     }
     if (e.key === 'ArrowDown') {
@@ -112,18 +124,19 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
       e.preventDefault();
       setActiveIdx(i => Math.max(i - 1, -1));
     } else if (e.key === 'Enter') {
+      e.preventDefault();
       if (activeIdx >= 0 && suggestions[activeIdx]) {
         handleSelect(suggestions[activeIdx]);
       } else {
         setShowDropdown(false);
-        onSearch();
+        handleSearchButton();
       }
     } else if (e.key === 'Escape') {
       setShowDropdown(false);
     }
   };
 
-  // Close on outside click
+  // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -135,33 +148,45 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
   }, []);
 
   return (
-    <div className="bg-white rounded-2xl border border-[#ede0ce] shadow-sm p-4 flex flex-col gap-3">
-      {/* Search input with suggestions dropdown */}
+    /*
+     * No outer card/border/padding here — the parent sidebar section already
+     * provides its own padding. This component is just the controls.
+     */
+    <div className="flex flex-col gap-2">
+
+      {/* ── Search input ─────────────────────────────────── */}
       <div className="relative" ref={containerRef}>
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg z-10" />
+        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base z-10 pointer-events-none" />
         <input
           type="text"
           value={filters.q}
           onChange={handleInputChange}
           onKeyDown={handleKey}
           onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
-          placeholder="Search treatment, service, doctor specialty, hospital name…"
-          className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-[#ede0ce] bg-[#faf6ee] text-sm text-[#172554] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-300"
+          placeholder="Search hospitals…"
+          className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-[#ede0ce] bg-white text-sm text-[#172554] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-300 transition-shadow"
           autoComplete="off"
           aria-autocomplete="list"
           aria-expanded={showDropdown}
+          aria-label="Search hospitals"
         />
         {filters.q && (
           <button
-            onClick={() => { set({ q: '' }); setSuggestions([]); setShowDropdown(false); }}
+            onClick={() => {
+              const next = update({ q: '' });
+              setSuggestions([]);
+              setShowDropdown(false);
+              onSearch(next); // clear → re-run search with empty q
+            }}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
             aria-label="Clear search"
+            tabIndex={-1}
           >
             <FiX />
           </button>
         )}
 
-        {/* Suggestions dropdown */}
+        {/* ── Suggestions dropdown ─────────────────────── */}
         {showDropdown && suggestions.length > 0 && (
           <ul
             role="listbox"
@@ -172,10 +197,12 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
                 key={`${s.type}-${s.label}`}
                 role="option"
                 aria-selected={idx === activeIdx}
-                onMouseDown={(e) => { e.preventDefault(); handleSelect(s); }}
+                onMouseDown={e => { e.preventDefault(); handleSelect(s); }}
                 onMouseEnter={() => setActiveIdx(idx)}
                 className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${
-                  idx === activeIdx ? 'bg-primary-50 text-primary-800' : 'text-gray-700 hover:bg-gray-50'
+                  idx === activeIdx
+                    ? 'bg-primary-50 text-primary-800'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <SuggestionIcon type={s.type} />
@@ -189,7 +216,7 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
                   s.type === 'hospital'  ? 'bg-primary-100 text-primary-700' :
                   s.type === 'service'   ? 'bg-green-100 text-green-700' :
                   s.type === 'specialty' ? 'bg-amber-100 text-amber-700' :
-                  'bg-blue-100 text-blue-700'
+                                           'bg-blue-100 text-blue-700'
                 }`}>
                   {typeLabel(s.type)}
                 </span>
@@ -199,14 +226,18 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2">
-        {/* District */}
-        <div className="relative flex-1">
-          <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+      {/* ── Row 2: district + emergency + search button ─── */}
+      <div className="flex gap-2">
+        {/* District picker */}
+        <div className="relative flex-1 min-w-0">
+          <FiMapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" />
           <select
             value={filters.district}
-            onChange={e => set({ district: e.target.value })}
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#ede0ce] bg-[#faf6ee] text-sm text-[#172554] focus:outline-none focus:ring-2 focus:ring-primary-300 appearance-none"
+            onChange={e => {
+              const next = update({ district: e.target.value });
+              onSearch(next); // auto-search on district change
+            }}
+            className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-[#ede0ce] bg-white text-sm text-[#172554] focus:outline-none focus:ring-2 focus:ring-primary-300 appearance-none cursor-pointer"
           >
             <option value="">All Districts</option>
             {NEPAL_DISTRICTS.map(d => (
@@ -218,29 +249,33 @@ export const SearchFilters: React.FC<Props> = ({ filters, onChange, onSearch, on
         {/* Emergency toggle */}
         <button
           type="button"
-          onClick={() => set({ emergency: !filters.emergency })}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+          onClick={() => {
+            const next = update({ emergency: !filters.emergency });
+            onSearch(next); // auto-search on toggle
+          }}
+          className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
             filters.emergency
               ? 'bg-red-600 text-white border-red-600 hover:bg-red-700'
-              : 'border-[#ede0ce] bg-[#faf6ee] text-[#8a7a63] hover:bg-red-50 hover:border-red-200 hover:text-red-600'
+              : 'border-[#ede0ce] bg-white text-[#8a7a63] hover:bg-red-50 hover:border-red-200 hover:text-red-600'
           }`}
+          title="Show only hospitals with emergency service"
         >
-          <FiAlertTriangle />
-          Emergency
+          <FiAlertTriangle className="text-base" />
+          <span className="hidden sm:inline">Emergency</span>
         </button>
 
         {/* Search button */}
         <button
-          onClick={onSearch}
+          onClick={handleSearchButton}
           disabled={loading}
-          className="px-6 py-2.5 rounded-xl bg-primary-700 text-white text-sm font-semibold hover:bg-primary-800 transition-colors disabled:opacity-60 flex items-center gap-2"
+          className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-700 text-white text-sm font-semibold hover:bg-primary-800 transition-colors disabled:opacity-60"
         >
           {loading ? (
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
             <FiSearch />
           )}
-          Search
+          <span className="hidden sm:inline">Search</span>
         </button>
       </div>
     </div>

@@ -108,6 +108,7 @@ export const UserHospitalDetail: React.FC = () => {
   };
 
   return (
+    <div className="h-full overflow-y-auto">
     <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4 pb-24 md:pb-6">
       {/* Back */}
       <button onClick={() => navigate(-1)} className="flex items-center gap-1 text-sm text-[#8a7a63] hover:text-primary-700 transition-colors">
@@ -283,6 +284,7 @@ export const UserHospitalDetail: React.FC = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };
