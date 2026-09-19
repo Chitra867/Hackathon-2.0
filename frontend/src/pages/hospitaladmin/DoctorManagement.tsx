@@ -25,7 +25,7 @@ const emptyForm = {
   specialty: '',
   qualification: '',
   phone: '',
-  duty_status: 'on_duty',
+  duty_status: 'on_duty', // default sent on create; not shown in the add form
   consultation_days: '',
   consultation_time: '',
   is_active: true,
@@ -276,20 +276,22 @@ export const DoctorManagement: React.FC = () => {
                   disabled={saving}
                 />
               </div>
-              {/* Duty Status */}
-              <div>
-                <label className="label">Current Duty Status</label>
-                <select
-                  value={form.duty_status}
-                  onChange={e => setForm(f => ({ ...f, duty_status: e.target.value }))}
-                  className="input"
-                  disabled={saving}
-                >
-                  {DUTY_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Duty Status — only shown when editing an existing doctor */}
+              {editing && (
+                <div>
+                  <label className="label">Current Duty Status</label>
+                  <select
+                    value={form.duty_status}
+                    onChange={e => setForm(f => ({ ...f, duty_status: e.target.value }))}
+                    className="input"
+                    disabled={saving}
+                  >
+                    {DUTY_OPTIONS.map(o => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               {/* Consultation Days */}
               <div>
                 <label className="label">Consultation Days</label>

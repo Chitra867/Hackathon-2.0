@@ -118,6 +118,7 @@ function App() {
           <Route path="/hadmin/referrals/:id"      element={<HARefDetail />} />
           <Route path="/hadmin/referral-history"   element={<ReferralHistory />} />
           <Route path="/hadmin/patients"           element={<HAPatientManagement />} />
+          <Route path="/hadmin/patient-requests"   element={<HAPatientManagement />} />
           <Route path="/hadmin/profile"            element={<HospitalProfile />} />
         </Route>
 

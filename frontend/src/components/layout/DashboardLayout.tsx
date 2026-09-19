@@ -18,23 +18,24 @@ const getNavItems = (role: string): NavItem[] => {
   switch (role) {
     case 'system_admin':
       return [
-        { to: '/admin/dashboard',          label: 'Dashboard',         icon: <FiBarChart2 /> },
-        { to: '/admin/hospitals',           label: 'Hospitals',         icon: <FiMapPin /> },
-        { to: '/admin/hospital-admins',     label: 'Hospital Admins',   icon: <FiUsers /> },
-        { to: '/admin/patient-requests',    label: 'Patient Requests',  icon: <FiInbox /> },
-        { to: '/admin/services',            label: 'Services',          icon: <FiSettings /> },
-        { to: '/admin/reports',             label: 'Reports',           icon: <FiFileText /> },
+        { to: '/admin/dashboard',          label: 'Dashboard',              icon: <FiBarChart2 /> },
+        { to: '/admin/hospitals',           label: 'Hospitals',              icon: <FiMapPin /> },
+        { to: '/admin/hospital-admins',     label: 'Hospital Admins',        icon: <FiUsers /> },
+        { to: '/admin/patient-requests',    label: 'History of Referrals',   icon: <FiInbox /> },
+        { to: '/admin/services',            label: 'Services',               icon: <FiSettings /> },
+        { to: '/admin/reports',             label: 'Reports',                icon: <FiFileText /> },
       ];
     case 'hospital_admin':
     case 'hospital_staff':
       return [
-        { to: '/hadmin/dashboard',        label: 'Dashboard',        icon: <FiHome /> },
-        { to: '/hadmin/patients',         label: 'Patients',         icon: <FiUsers /> },
-        { to: '/hadmin/referrals',        label: 'Referrals',        icon: <FiList /> },
-        { to: '/hadmin/referrals/new',    label: 'New Referral',     icon: <FiArrowRight /> },
-        { to: '/hadmin/availability',     label: 'Availability',     icon: <FiActivity /> },
-        { to: '/hadmin/doctors',          label: 'Doctors',          icon: <FiUser /> },
-        { to: '/hadmin/profile',          label: 'Hospital Profile', icon: <FiSettings /> },
+        { to: '/hadmin/dashboard',          label: 'Dashboard',              icon: <FiHome /> },
+        { to: '/hadmin/patients',           label: 'Patients',               icon: <FiUsers /> },
+        { to: '/hadmin/referrals',          label: 'Referrals',              icon: <FiList /> },
+        { to: '/hadmin/referrals/new',      label: 'New Referral',           icon: <FiArrowRight /> },
+        { to: '/hadmin/patient-requests',   label: 'History of Referrals',   icon: <FiInbox /> },
+        { to: '/hadmin/availability',       label: 'Availability',           icon: <FiActivity /> },
+        { to: '/hadmin/doctors',            label: 'Doctors',                icon: <FiUser /> },
+        { to: '/hadmin/profile',            label: 'Hospital Profile',       icon: <FiSettings /> },
       ];
     default:
       return [];
@@ -73,9 +74,9 @@ export const DashboardLayout: React.FC = () => {
     location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#faf6ee]">
+    <div className="h-screen flex flex-col bg-[#faf6ee] overflow-hidden">
       <Navbar />
-      <div className="flex flex-1 max-w-screen-2xl mx-auto w-full">
+      <div className="flex flex-1 min-h-0 w-full overflow-hidden">
         {/* Sidebar */}
         <aside
           className={`hidden md:flex flex-col bg-white border-r border-[#ede0ce] transition-all duration-200 flex-shrink-0 ${

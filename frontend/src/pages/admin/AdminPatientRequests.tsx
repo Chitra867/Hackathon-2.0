@@ -122,10 +122,10 @@ export const AdminPatientRequests: React.FC = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[#3d2f1c] flex items-center gap-2">
-            <FiInbox className="text-primary-700" /> Patient Requests
+            <FiInbox className="text-primary-700" /> History of Referrals
           </h1>
           <p className="text-sm text-[#8a7a63] mt-0.5">
-            Manage and respond to patient assistance requests from all hospitals
+            View and respond to all patient referral requests across every hospital
           </p>
         </div>
         <button
