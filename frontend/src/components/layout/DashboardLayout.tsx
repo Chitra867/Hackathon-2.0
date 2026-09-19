@@ -49,13 +49,15 @@ const portalLabel = (role: string) => {
   }
 };
 
+// Warm family, one shade per role, so badges stay distinguishable without
+// breaking from the cream/brown theme used across the rest of the app.
 const portalAccent = (role: string) => {
   switch (role) {
-    case 'system_admin':   return 'bg-rose-600';
-    case 'hospital_admin': return 'bg-blue-600';
-    case 'hospital_staff': return 'bg-blue-500';
-    case 'health_worker':  return 'bg-primary-700';
-    default: return 'bg-gray-600';
+    case 'system_admin':   return 'bg-[#8b4f3f]'; // rust
+    case 'hospital_admin': return 'bg-[#6b7c4f]'; // olive
+    case 'hospital_staff': return 'bg-[#7c9163]'; // lighter olive
+    case 'health_worker':  return 'bg-[#8b6a3f]'; // primary brown
+    default: return 'bg-[#a89a82]';
   }
 };
 
@@ -69,12 +71,12 @@ export const DashboardLayout: React.FC = () => {
     location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-[#faf6ee]">
       <Navbar />
       <div className="flex flex-1 max-w-screen-2xl mx-auto w-full">
         {/* Sidebar */}
         <aside
-          className={`hidden md:flex flex-col bg-white border-r border-gray-100 transition-all duration-200 flex-shrink-0 ${
+          className={`hidden md:flex flex-col bg-white border-r border-[#ede0ce] transition-all duration-200 flex-shrink-0 ${
             collapsed ? 'w-16' : 'w-58'
           }`}
         >
@@ -102,8 +104,8 @@ export const DashboardLayout: React.FC = () => {
                     title={collapsed ? item.label : undefined}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-primary-50 text-primary-700 border border-primary-100'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-[#ede0ce] text-[#4a3a24] border border-[#d9c39e]'
+                        : 'text-[#8a7a63] hover:bg-[#faf1e0] hover:text-[#4a3a24]'
                     }`}
                   >
                     <span className="text-base flex-shrink-0">{item.icon}</span>
@@ -116,15 +118,15 @@ export const DashboardLayout: React.FC = () => {
 
           {/* Hospital name */}
           {!collapsed && user?.hospital_name && (
-            <div className="px-4 py-2 border-t border-gray-100">
-              <p className="text-xs text-gray-400 truncate">{user.hospital_name}</p>
+            <div className="px-4 py-2 border-t border-[#ede0ce]">
+              <p className="text-xs text-[#a89a82] truncate">{user.hospital_name}</p>
             </div>
           )}
 
           {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="flex items-center justify-center h-10 border-t border-gray-100 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center h-10 border-t border-[#ede0ce] text-[#a89a82] hover:text-[#4a3a24] hover:bg-[#faf1e0] transition-colors"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <FiChevronRight /> : <FiChevronLeft />}

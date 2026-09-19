@@ -1,207 +1,657 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FiMenu, FiX, FiBell, FiLogOut, FiSearch, FiUser, FiUserPlus } from 'react-icons/fi';
+import {
+  Link,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
+
+import {
+  FiMenu,
+  FiX,
+  FiBell,
+  FiLogOut,
+  FiUser,
+  FiUserPlus,
+} from 'react-icons/fi';
+
 import { GiHeartPlus } from 'react-icons/gi';
 import toast from 'react-hot-toast';
+
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 
+
 export const Navbar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user, logout, isAuthenticated, getDashboardPath } = useAuthStore();
+
+  const {
+    user,
+    logout,
+    isAuthenticated,
+    getDashboardPath,
+  } = useAuthStore();
+
   const { unreadCount } = useNotificationStore();
+
   const navigate = useNavigate();
   const location = useLocation();
 
+
+  // ─────────────────────────────────────────────
+  // LOGOUT
+  // ─────────────────────────────────────────────
+
   const handleLogout = async () => {
     await logout();
+
     toast.success('Logged out successfully');
+
     navigate('/');
+
     setMenuOpen(false);
   };
 
+
+  // ─────────────────────────────────────────────
+  // NAVIGATION LINKS
+  // ─────────────────────────────────────────────
+
   const navLinks = [
-    { to: '/search', label: 'Find Hospital' },
+    {
+      to: '/',
+      label: 'Find Hospital',
+    },
+    {
+      to: '/about',
+      label: 'About',
+    },
+
+    // Only staff/admin/health worker roles need dashboards.
+    // Normal users remain on the public side of the platform.
     ...(isAuthenticated() && user?.role !== 'user'
-      ? [{ to: getDashboardPath(), label: 'Dashboard' }]
+      ? [
+          {
+            to: getDashboardPath(),
+            label: 'Dashboard',
+          },
+        ]
       : []),
   ];
 
-  const isActive = (path: string) => location.pathname.startsWith(path);
+
+  // ─────────────────────────────────────────────
+  // ACTIVE LINK
+  // ─────────────────────────────────────────────
+
+  const isActive = (path: string) => {
+    if (path === '/') {
+      return (
+        location.pathname === '/' ||
+        location.pathname === '/search'
+      );
+    }
+
+    return location.pathname.startsWith(path);
+  };
+
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
+    <header className="border-b border-gray-100 bg-white shadow-sm">
 
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-            <GiHeartPlus className="text-2xl text-primary-700" />
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+
+        <div className="flex h-16 items-center justify-between">
+
+
+          {/* ─────────────────────────────────────
+              LOGO
+          ───────────────────────────────────── */}
+
+          <Link
+            to="/"
+            className="
+              flex
+              flex-shrink-0
+              items-center
+              gap-2
+            "
+          >
+            <GiHeartPlus
+              className="
+                text-2xl
+                text-primary-700
+              "
+            />
+
             <div>
-              <span className="font-bold text-primary-800 text-lg leading-tight">UpacharKhoj</span>
-              <span className="hidden sm:block text-xs text-gray-500 leading-tight">Nepal</span>
+              <span
+                className="
+                  block
+                  text-lg
+                  font-bold
+                  leading-tight
+                  text-primary-800
+                "
+              >
+                UpacharKhoj
+              </span>
+
+              <span
+                className="
+                  hidden
+                  text-xs
+                  leading-tight
+                  text-gray-500
+                  sm:block
+                "
+              >
+                Nepal
+              </span>
             </div>
           </Link>
 
-          {/* Desktop Nav links */}
-          <nav className="hidden md:flex items-center gap-6">
+
+          {/* ─────────────────────────────────────
+              DESKTOP NAVIGATION
+          ───────────────────────────────────── */}
+
+          <nav
+            className="
+              hidden
+              items-center
+              gap-8
+              md:flex
+            "
+          >
             {navLinks.map((link) => (
               <Link
-                key={link.to}
+                key={`${link.to}-${link.label}`}
                 to={link.to}
-                className={`text-sm font-medium transition-colors ${
-                  isActive(link.to) ? 'text-primary-700' : 'text-gray-600 hover:text-primary-700'
-                }`}
+                className={`
+                  text-sm
+                  font-medium
+                  transition-colors
+                  ${
+                    isActive(link.to)
+                      ? 'text-primary-700'
+                      : 'text-gray-600 hover:text-primary-700'
+                  }
+                `}
               >
                 {link.label}
               </Link>
             ))}
           </nav>
 
-          {/* Right side */}
-          <div className="flex items-center gap-2">
-            {/* Search icon */}
-            <Link
-              to="/search"
-              className="p-2 text-gray-500 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
-              aria-label="Search hospitals"
-            >
-              <FiSearch />
-            </Link>
+
+          {/* ─────────────────────────────────────
+              RIGHT SIDE
+          ───────────────────────────────────── */}
+
+          <div
+            className="
+              flex
+              items-center
+              gap-2
+            "
+          >
 
             {isAuthenticated() ? (
               <>
+
                 {/* Notifications */}
+
                 <button
-                  className="relative p-2 text-gray-500 hover:text-primary-700 hover:bg-primary-50 rounded-lg transition-colors"
+                  type="button"
+                  className="
+                    relative
+                    rounded-lg
+                    p-2
+                    text-gray-500
+                    transition-colors
+                    hover:bg-primary-50
+                    hover:text-primary-700
+                  "
                   aria-label="Notifications"
                 >
                   <FiBell />
+
                   {unreadCount() > 0 && (
-                    <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                      {unreadCount() > 9 ? '9+' : unreadCount()}
+                    <span
+                      className="
+                        absolute
+                        right-1
+                        top-1
+                        flex
+                        h-4
+                        w-4
+                        items-center
+                        justify-center
+                        rounded-full
+                        bg-red-500
+                        text-[10px]
+                        text-white
+                      "
+                    >
+                      {unreadCount() > 9
+                        ? '9+'
+                        : unreadCount()}
                     </span>
                   )}
                 </button>
 
-                {/* User avatar + name */}
-                <div className="hidden md:flex items-center gap-2">
+
+                {/* User Information */}
+
+                <div
+                  className="
+                    hidden
+                    items-center
+                    gap-2
+                    md:flex
+                  "
+                >
+
                   <Link
                     to={getDashboardPath()}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                      rounded-lg
+                      px-3
+                      py-1.5
+                      text-sm
+                      text-gray-700
+                      transition-colors
+                      hover:bg-gray-100
+                    "
                   >
-                    <div className="w-7 h-7 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-semibold text-xs">
-                      {user?.username?.charAt(0).toUpperCase()}
+                    <div
+                      className="
+                        flex
+                        h-7
+                        w-7
+                        items-center
+                        justify-center
+                        rounded-full
+                        bg-primary-100
+                        text-xs
+                        font-semibold
+                        text-primary-700
+                      "
+                    >
+                      {user?.username
+                        ?.charAt(0)
+                        .toUpperCase()}
                     </div>
-                    <div className="hidden lg:block text-left">
-                      <div className="text-sm font-medium text-gray-800 leading-tight truncate max-w-[100px]">
-                        {user?.first_name || user?.username}
+
+
+                    <div
+                      className="
+                        hidden
+                        text-left
+                        lg:block
+                      "
+                    >
+                      <div
+                        className="
+                          max-w-[120px]
+                          truncate
+                          text-sm
+                          font-medium
+                          leading-tight
+                          text-gray-800
+                        "
+                      >
+                        {user?.first_name ||
+                          user?.username}
                       </div>
-                      <div className="text-xs text-gray-400 leading-tight capitalize">
-                        {user?.role_display || user?.role?.replace(/_/g, ' ')}
+
+
+                      <div
+                        className="
+                          text-xs
+                          capitalize
+                          leading-tight
+                          text-gray-400
+                        "
+                      >
+                        {user?.role_display ||
+                          user?.role?.replace(
+                            /_/g,
+                            ' '
+                          )}
                       </div>
                     </div>
+
                   </Link>
+
+
+                  {/* Logout */}
+
                   <button
+                    type="button"
                     onClick={handleLogout}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="
+                      rounded-lg
+                      p-2
+                      text-gray-500
+                      transition-colors
+                      hover:bg-red-50
+                      hover:text-red-600
+                    "
                     aria-label="Sign out"
                     title="Sign out"
                   >
                     <FiLogOut />
                   </button>
+
                 </div>
+
               </>
             ) : (
-              /* Login + Sign Up buttons */
-              <div className="hidden md:flex items-center gap-2">
+
+              /* LOGIN + SIGN UP */
+
+              <div
+                className="
+                  hidden
+                  items-center
+                  gap-2
+                  md:flex
+                "
+              >
+
                 <Link
                   to="/login"
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="
+                    flex
+                    items-center
+                    gap-1.5
+                    rounded-lg
+                    border
+                    border-gray-300
+                    px-4
+                    py-2
+                    text-sm
+                    font-medium
+                    text-gray-700
+                    transition-colors
+                    hover:bg-gray-50
+                  "
                 >
-                  <FiUser className="text-sm" />
+                  <FiUser />
+
                   Login
                 </Link>
+
+
                 <Link
                   to="/register"
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-700 hover:bg-primary-800 rounded-lg transition-colors"
+                  className="
+                    flex
+                    items-center
+                    gap-1.5
+                    rounded-lg
+                    bg-primary-700
+                    px-4
+                    py-2
+                    text-sm
+                    font-medium
+                    text-white
+                    transition-colors
+                    hover:bg-primary-800
+                  "
                 >
-                  <FiUserPlus className="text-sm" />
+                  <FiUserPlus />
+
                   Sign Up
                 </Link>
+
               </div>
+
             )}
 
-            {/* Mobile hamburger */}
+
+            {/* ─────────────────────────────────────
+                MOBILE MENU BUTTON
+            ───────────────────────────────────── */}
+
             <button
-              className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
-              onClick={() => setMenuOpen(!menuOpen)}
+              type="button"
+              className="
+                rounded-lg
+                p-2
+                text-gray-600
+                hover:bg-gray-100
+                md:hidden
+              "
+              onClick={() =>
+                setMenuOpen(!menuOpen)
+              }
               aria-label="Toggle menu"
             >
-              {menuOpen ? <FiX /> : <FiMenu />}
+              {menuOpen
+                ? <FiX />
+                : <FiMenu />}
             </button>
+
           </div>
+
         </div>
 
-        {/* Mobile menu */}
+
+        {/* ─────────────────────────────────────
+            MOBILE MENU
+        ───────────────────────────────────── */}
+
         {menuOpen && (
-          <div className="md:hidden border-t border-gray-100 py-3 space-y-1">
+          <div
+            className="
+              space-y-1
+              border-t
+              border-gray-100
+              py-3
+              md:hidden
+            "
+          >
+
             {navLinks.map((link) => (
               <Link
-                key={link.to}
+                key={`${link.to}-${link.label}`}
                 to={link.to}
-                className="block px-3 py-2 text-sm font-medium text-gray-700 hover:bg-primary-50 hover:text-primary-700 rounded-lg"
-                onClick={() => setMenuOpen(false)}
+                onClick={() =>
+                  setMenuOpen(false)
+                }
+                className={`
+                  block
+                  rounded-lg
+                  px-3
+                  py-2
+                  text-sm
+                  font-medium
+                  transition-colors
+                  ${
+                    isActive(link.to)
+                      ? 'bg-primary-50 text-primary-700'
+                      : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
+                  }
+                `}
               >
                 {link.label}
               </Link>
             ))}
 
+
             {isAuthenticated() ? (
               <>
-                <div className="px-3 py-2 border-t border-gray-100 mt-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-7 h-7 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center font-bold text-xs">
-                      {user?.username?.charAt(0).toUpperCase()}
+
+                {/* Mobile User */}
+
+                <div
+                  className="
+                    mt-2
+                    border-t
+                    border-gray-100
+                    px-3
+                    py-3
+                  "
+                >
+                  <div
+                    className="
+                      flex
+                      items-center
+                      gap-2
+                    "
+                  >
+                    <div
+                      className="
+                        flex
+                        h-8
+                        w-8
+                        items-center
+                        justify-center
+                        rounded-full
+                        bg-primary-100
+                        text-xs
+                        font-bold
+                        text-primary-700
+                      "
+                    >
+                      {user?.username
+                        ?.charAt(0)
+                        .toUpperCase()}
                     </div>
+
+
                     <div>
-                      <div className="text-sm font-medium text-gray-800">{user?.first_name || user?.username}</div>
-                      <div className="text-xs text-gray-400 capitalize">
-                        {user?.role_display || user?.role?.replace(/_/g, ' ')}
+                      <div
+                        className="
+                          text-sm
+                          font-medium
+                          text-gray-800
+                        "
+                      >
+                        {user?.first_name ||
+                          user?.username}
+                      </div>
+
+
+                      <div
+                        className="
+                          text-xs
+                          capitalize
+                          text-gray-400
+                        "
+                      >
+                        {user?.role_display ||
+                          user?.role?.replace(
+                            /_/g,
+                            ' '
+                          )}
                       </div>
                     </div>
                   </div>
                 </div>
+
+
+                {/* Mobile Logout */}
+
                 <button
+                  type="button"
                   onClick={handleLogout}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg flex items-center gap-2"
+                  className="
+                    flex
+                    w-full
+                    items-center
+                    gap-2
+                    rounded-lg
+                    px-3
+                    py-2
+                    text-left
+                    text-sm
+                    text-red-600
+                    hover:bg-red-50
+                  "
                 >
-                  <FiLogOut /> Sign Out
+                  <FiLogOut />
+
+                  Sign Out
                 </button>
+
               </>
             ) : (
-              <>
-                <div className="border-t border-gray-100 pt-2 mt-1 space-y-1">
-                  <Link
-                    to="/login"
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <FiUser /> Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-primary-700 hover:bg-primary-800 rounded-lg"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <FiUserPlus /> Sign Up
-                  </Link>
-                </div>
-              </>
+
+              /* MOBILE LOGIN + SIGN UP */
+
+              <div
+                className="
+                  mt-2
+                  space-y-1
+                  border-t
+                  border-gray-100
+                  pt-2
+                "
+              >
+
+                <Link
+                  to="/login"
+                  onClick={() =>
+                    setMenuOpen(false)
+                  }
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    rounded-lg
+                    px-3
+                    py-2
+                    text-sm
+                    font-medium
+                    text-gray-700
+                    hover:bg-gray-100
+                  "
+                >
+                  <FiUser />
+
+                  Login
+                </Link>
+
+
+                <Link
+                  to="/register"
+                  onClick={() =>
+                    setMenuOpen(false)
+                  }
+                  className="
+                    flex
+                    items-center
+                    gap-2
+                    rounded-lg
+                    bg-primary-700
+                    px-3
+                    py-2
+                    text-sm
+                    font-medium
+                    text-white
+                    hover:bg-primary-800
+                  "
+                >
+                  <FiUserPlus />
+
+                  Sign Up
+                </Link>
+
+              </div>
+
             )}
+
           </div>
         )}
+
       </div>
+
     </header>
   );
 };
