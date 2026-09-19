@@ -13,8 +13,6 @@ import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 
-const DJANGO_ADMIN_URL = 'http://127.0.0.1:8000/admin/';
-
 export const Navbar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
