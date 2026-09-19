@@ -799,13 +799,13 @@ export const SearchPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f8f4eb]">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
 
         {/* ----------------------------------------
             HERO SECTION
         ---------------------------------------- */}
 
-        <section className="relative mb-9 overflow-hidden rounded-[30px] border border-[#dfd1b5] shadow-[0_18px_45px_rgba(78,58,26,0.12)] md:min-h-[450px]">
+        <section className="relative mb-6 overflow-hidden rounded-[24px] border border-[#dfd1b5] shadow-[0_12px_35px_rgba(78,58,26,0.10)] md:rounded-[30px] md:min-h-[440px]">
 
           {/* HERO IMAGE */}
 
@@ -827,10 +827,10 @@ export const SearchPage: React.FC = () => {
 
           {/* HERO CONTENT */}
 
-          <div className="relative z-10 px-7 pb-8 pt-10 md:px-11 md:pb-[205px] md:pt-11">
+          <div className="relative z-10 px-5 pb-5 pt-7 md:px-11 md:pb-[200px] md:pt-11">
             <div className="max-w-[610px]">
 
-              <h1 className="text-[39px] font-bold leading-[0.98] tracking-[-0.035em] text-[#13295b] sm:text-[48px] lg:text-[58px]">
+              <h1 className="text-[32px] font-bold leading-[0.98] tracking-[-0.035em] text-[#13295b] sm:text-[44px] lg:text-[56px]">
                 Find the right care
 
                 <span className="block text-[#08606a]">
@@ -846,7 +846,7 @@ export const SearchPage: React.FC = () => {
 
               {/* BENEFITS */}
 
-              <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 text-sm font-medium text-[#4b4e47]">
+              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-[#4b4e47] sm:text-sm">
 
                 <span className="flex items-center gap-2">
                   <FiShield className="text-[#c08c2d]" />
@@ -872,13 +872,13 @@ export const SearchPage: React.FC = () => {
               SEARCH PANEL
           -------------------------------------- */}
 
-          <div className="relative z-20 mx-4 mb-5 mt-5 md:absolute md:bottom-5 md:left-8 md:right-8 md:m-0">
+          <div className="relative z-20 mx-3 mb-4 mt-4 md:absolute md:bottom-4 md:left-6 md:right-6 md:m-0">
 
-            <div className="rounded-[22px] border border-white/60 bg-gradient-to-r from-[#f7eee0]/95 via-[#aabfba]/95 to-[#08616b]/95 p-4 shadow-[0_14px_35px_rgba(25,59,62,0.25)] backdrop-blur-md">
+            <div className="rounded-[18px] border border-white/60 bg-gradient-to-r from-[#f7eee0]/95 via-[#aabfba]/95 to-[#08616b]/95 p-3 shadow-[0_10px_28px_rgba(25,59,62,0.22)] backdrop-blur-md sm:p-4">
 
               <form
                 onSubmit={handleSearch}
-                className="grid grid-cols-1 items-end gap-3 md:grid-cols-[1.5fr_0.8fr_auto]"
+                className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1.5fr_0.8fr_auto]"
               >
 
                 {/* SERVICE SEARCH */}
@@ -1048,7 +1048,7 @@ export const SearchPage: React.FC = () => {
             HOSPITAL RESULTS HEADER
         ---------------------------------------- */}
 
-        <div className="mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
 
           <div>
             <h2 className="text-2xl font-bold text-[#172554]">

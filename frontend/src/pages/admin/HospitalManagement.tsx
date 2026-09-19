@@ -2,11 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FiPlus,
-  FiSearch,
-  FiEdit2,
-  FiToggleRight,
-  FiToggleLeft,
+  FiPlus, FiSearch, FiEdit2,
+  FiToggleLeft, FiToggleRight,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -47,24 +44,11 @@ export const HospitalManagement: React.FC = () => {
     setToggling(hospital.id);
 
     try {
-      await hospitalsApi.update(hospital.id, {
-        is_active: !hospital.is_active,
-      });
-
-      toast.success(
-        `Hospital ${
-          hospital.is_active ? 'deactivated' : 'activated'
-        } successfully`
-      );
-
+      await hospitalsApi.update(hospital.id, { is_active: !hospital.is_active });
+      toast.success(`Hospital ${hospital.is_active ? 'deactivated' : 'activated'}`);
       setHospitals((prev) =>
         prev.map((h) =>
-          h.id === hospital.id
-            ? {
-                ...h,
-                is_active: !h.is_active,
-              }
-            : h
+          h.id === hospital.id ? { ...h, is_active: !h.is_active } : h
         )
       );
     } catch {
@@ -74,23 +58,17 @@ export const HospitalManagement: React.FC = () => {
     }
   };
 
-  // Filter hospitals by name or district
-  const filtered = hospitals.filter((hospital) => {
-    if (!search.trim()) {
-      return true;
-    }
-
-    const query = search.toLowerCase().trim();
-
+  const filtered = hospitals.filter((h) => {
+    if (!search) return true;
+    const q = search.toLowerCase();
     return (
-      hospital.name.toLowerCase().includes(query) ||
-      hospital.district.toLowerCase().includes(query)
+      h.name.toLowerCase().includes(q) ||
+      h.district.toLowerCase().includes(q)
     );
   });
 
   return (
     <div className="bg-[#faedd7] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
-
       {/* Header */}
       <div className="flex items-start sm:items-center justify-between gap-4 mb-6 flex-col sm:flex-row">
 
@@ -114,7 +92,7 @@ export const HospitalManagement: React.FC = () => {
 
       </div>
 
-      {/* Search and hospital count */}
+      {/* Search + count */}
       <div className="flex items-center justify-between gap-4 mb-4 flex-col sm:flex-row">
 
         <div className="relative w-full sm:max-w-sm">
@@ -137,9 +115,9 @@ export const HospitalManagement: React.FC = () => {
 
       </div>
 
-      {/* Loading state or hospital table */}
+      {/* Table */}
       {loading ? (
-        <LoadingSpinner text="Loading hospitals..." />
+        <LoadingSpinner text="Loading hospitals…" />
       ) : (
         <div className="card p-0">
 
@@ -170,109 +148,54 @@ export const HospitalManagement: React.FC = () => {
               <tbody>
 
                 {filtered.length === 0 ? (
-
                   <tr>
-                    <td
-                      colSpan={5}
-                      className="text-center py-8 text-gray-500"
-                    >
+                    <td colSpan={5} className="text-center py-8 text-gray-500">
                       No hospitals found.
                     </td>
                   </tr>
-
                 ) : (
-
-                  filtered.map((hospital) => (
-
-                    <tr key={hospital.id}>
-
-                      {/* Hospital name */}
+                  filtered.map((h) => (
+                    <tr key={h.id}>
                       <td>
-
-                        <div className="font-medium text-gray-900">
-                          {hospital.name}
-                        </div>
-
+                        <div className="font-medium text-gray-900">{h.name}</div>
                         <div className="text-xs text-gray-500 sm:hidden">
-                          {hospital.type_display || hospital.type}
-                          {' · '}
-                          {hospital.district}
+                          {h.type_display} · {h.district}
                         </div>
-
                       </td>
-
-                      {/* Hospital type */}
                       <td className="hidden sm:table-cell text-gray-600 capitalize">
-                        {hospital.type_display || hospital.type}
+                        {h.type_display || h.type}
                       </td>
-
-                      {/* District */}
                       <td className="hidden md:table-cell text-gray-600">
-                        {hospital.district}
+                        {h.district}
                       </td>
-
-                      {/* Active/inactive toggle */}
                       <td>
-
                         <button
-                          type="button"
-                          onClick={() => handleToggle(hospital)}
-                          disabled={toggling === hospital.id}
-                          className="p-1 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          title={
-                            hospital.is_active
-                              ? 'Deactivate'
-                              : 'Activate'
-                          }
-                          aria-label={
-                            hospital.is_active
-                              ? `Deactivate ${hospital.name}`
-                              : `Activate ${hospital.name}`
-                          }
+                          onClick={() => handleToggle(h)}
+                          disabled={toggling === h.id}
+                          className="p-1 rounded transition-colors disabled:opacity-50"
+                          title={h.is_active ? 'Deactivate' : 'Activate'}
                         >
-
-                          {hospital.is_active ? (
-
+                          {h.is_active ? (
                             <FiToggleRight className="text-2xl text-green-600" />
-
                           ) : (
-
                             <FiToggleLeft className="text-2xl text-gray-400" />
-
                           )}
-
                         </button>
-
                       </td>
-
-                      {/* Edit hospital */}
                       <td>
-
                         <Link
-                          to={`/admin/hospitals/${hospital.id}/edit`}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#216d73] border border-[#e5dcc8] rounded-lg px-2.5 py-1.5 hover:bg-[#e8f0ec] transition-colors"
+                          to={`/admin/hospitals/${h.id}/edit`}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#216d73] border border-[#e5dcc8] rounded-lg px-2.5 py-1.5 hover:bg-[#eaf4f4] transition-colors"
                         >
-
-                          <FiEdit2 className="text-[11px]" />
-
-                          Edit
-
+                          <FiEdit2 className="text-[11px]" /> Edit
                         </Link>
-
                       </td>
-
                     </tr>
-
                   ))
-
                 )}
-
               </tbody>
-
             </table>
-
           </div>
-
         </div>
       )}
 

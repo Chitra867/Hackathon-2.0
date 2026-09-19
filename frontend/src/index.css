@@ -3,8 +3,18 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    @apply scroll-smooth;
+  }
   body {
-    @apply bg-blue-50 text-gray-900 font-sans;
+    /* Neutral warm background so no blue flash behind warm-toned pages */
+    @apply bg-[#f8f4eb] text-gray-900 font-sans;
+  }
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  img, svg, video {
+    @apply max-w-full;
   }
 }
 

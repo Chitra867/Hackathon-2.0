@@ -146,7 +146,7 @@ export const IncomingReferrals: React.FC = () => {
       setPrTotal(res.data.count);
       setPrHasNext(page * PAGE_SIZE < res.data.count);
       setPrPage(page);
-    } catch { toast.error('Failed to load patient requests.'); }
+    } catch { toast.error('Failed to load service requests.'); }
     finally { if (mountedRef.current) setPrLoading(false); }
   }, [prTab, prSearch]);
 
@@ -265,7 +265,7 @@ export const IncomingReferrals: React.FC = () => {
             className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
               section === s ? 'bg-primary-700 text-white' : 'text-[#8a7a63] hover:bg-[#faf1e0]'
             }`}>
-            {s === 'referrals' ? 'Referrals' : 'Patient Requests'}
+            {s === 'referrals' ? 'Referrals' : 'Service Requests'}
             {s === 'referrals' && refTotal > 0 && (
               <span className={`text-xs px-1.5 py-0.5 rounded-full ${section === s ? 'bg-white/30 text-white' : 'bg-primary-100 text-primary-700'}`}>{refTotal}</span>
             )}
@@ -387,7 +387,7 @@ export const IncomingReferrals: React.FC = () => {
           : requests.length === 0 ? (
             <div className="bg-white rounded-2xl border border-[#ede0ce] p-16 text-center shadow-sm">
               <div className="text-5xl mb-3">📩</div>
-              <p className="text-gray-400 text-sm">No patient requests found.</p>
+              <p className="text-gray-400 text-sm">No service requests found.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -501,7 +501,7 @@ export const IncomingReferrals: React.FC = () => {
                   {modal.action === 'accepted' ? '✓ Accept' : modal.action === 'rejected' ? '✕ Reject' : '📞 Requires Call'}
                 </h2>
                 <p className="text-xs text-[#8a7a63] mt-0.5">
-                  {modal.type === 'referral' ? 'Referral' : 'Patient Request'} #{modal.code}
+                  {modal.type === 'referral' ? 'Referral' : 'Service Request'} #{modal.code}
                   {modal.label ? ` · ${modal.label}` : ''}
                 </p>
               </div>

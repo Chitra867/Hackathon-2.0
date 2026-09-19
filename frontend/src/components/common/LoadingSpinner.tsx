@@ -3,6 +3,7 @@ import React from 'react';
 interface LoadingSpinnerProps {
   size?: 'sm' | 'md' | 'lg';
   text?: string;
+  /** Fill the full available height (use inside Layout's <main>) */
   fullPage?: boolean;
 }
 
@@ -26,7 +27,7 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   if (fullPage) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-blue-50">
+      <div className="flex min-h-[60vh] items-center justify-center bg-[#f8f4eb]">
         {spinner}
       </div>
     );
@@ -52,10 +53,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   description,
   action,
 }) => (
-  <div className="flex flex-col items-center justify-center py-16 text-center px-4">
-    <div className="text-5xl mb-4">{icon}</div>
-    <h3 className="text-lg font-semibold text-gray-700 mb-2">{title}</h3>
-    {description && <p className="text-sm text-gray-500 mb-6 max-w-sm">{description}</p>}
+  <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+    <div className="text-4xl mb-3">{icon}</div>
+    <h3 className="text-base font-semibold text-gray-700 mb-1.5">{title}</h3>
+    {description && <p className="text-sm text-gray-500 mb-5 max-w-sm">{description}</p>}
     {action}
   </div>
 );
