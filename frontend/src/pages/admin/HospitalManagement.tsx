@@ -2,8 +2,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  FiPlus, FiSearch, FiEdit2,
-  FiToggleLeft, FiToggleRight,
+  FiPlus,
+  FiSearch,
+  FiEdit2,
+  FiToggleRight,
+  FiToggleLeft,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -34,7 +37,6 @@ export const HospitalManagement: React.FC = () => {
       });
   };
 
-  // Load hospitals when the component mounts
   useEffect(() => {
     load();
   }, []);
@@ -44,11 +46,19 @@ export const HospitalManagement: React.FC = () => {
     setToggling(hospital.id);
 
     try {
-      await hospitalsApi.update(hospital.id, { is_active: !hospital.is_active });
-      toast.success(`Hospital ${hospital.is_active ? 'deactivated' : 'activated'}`);
+      await hospitalsApi.update(hospital.id, {
+        is_active: !hospital.is_active,
+      });
+
+      toast.success(
+        `Hospital ${hospital.is_active ? 'deactivated' : 'activated'}`
+      );
+
       setHospitals((prev) =>
         prev.map((h) =>
-          h.id === hospital.id ? { ...h, is_active: !h.is_active } : h
+          h.id === hospital.id
+            ? { ...h, is_active: !h.is_active }
+            : h
         )
       );
     } catch {
@@ -61,6 +71,7 @@ export const HospitalManagement: React.FC = () => {
   const filtered = hospitals.filter((h) => {
     if (!search) return true;
     const q = search.toLowerCase();
+
     return (
       h.name.toLowerCase().includes(q) ||
       h.district.toLowerCase().includes(q)
@@ -76,7 +87,6 @@ export const HospitalManagement: React.FC = () => {
           <h1 className="text-2xl font-semibold text-[#1c3d3f] m-0">
             Hospital Management
           </h1>
-
           <p className="text-sm text-[#6b7d79] mt-1">
             Manage all registered healthcare facilities
           </p>
@@ -115,7 +125,6 @@ export const HospitalManagement: React.FC = () => {
 
       </div>
 
-      {/* Table */}
       {loading ? (
         <LoadingSpinner text="Loading hospitals…" />
       ) : (
@@ -144,12 +153,14 @@ export const HospitalManagement: React.FC = () => {
                 </tr>
               </thead>
 
-              {/* Table body */}
               <tbody>
 
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="text-center py-8 text-gray-500">
+                    <td
+                      colSpan={5}
+                      className="text-center py-8 text-gray-500"
+                    >
                       No hospitals found.
                     </td>
                   </tr>
@@ -157,22 +168,27 @@ export const HospitalManagement: React.FC = () => {
                   filtered.map((h) => (
                     <tr key={h.id}>
                       <td>
-                        <div className="font-medium text-gray-900">{h.name}</div>
+                        <div className="font-medium text-gray-900">
+                          {h.name}
+                        </div>
                         <div className="text-xs text-gray-500 sm:hidden">
                           {h.type_display} · {h.district}
                         </div>
                       </td>
+
                       <td className="hidden sm:table-cell text-gray-600 capitalize">
                         {h.type_display || h.type}
                       </td>
+
                       <td className="hidden md:table-cell text-gray-600">
                         {h.district}
                       </td>
+
                       <td>
                         <button
                           onClick={() => handleToggle(h)}
                           disabled={toggling === h.id}
-                          className="p-1 rounded transition-colors disabled:opacity-50"
+                          className="p-1 rounded transition-colors"
                           title={h.is_active ? 'Deactivate' : 'Activate'}
                         >
                           {h.is_active ? (
@@ -182,10 +198,11 @@ export const HospitalManagement: React.FC = () => {
                           )}
                         </button>
                       </td>
+
                       <td>
                         <Link
                           to={`/admin/hospitals/${h.id}/edit`}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#216d73] border border-[#e5dcc8] rounded-lg px-2.5 py-1.5 hover:bg-[#eaf4f4] transition-colors"
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#216d73] border border-[#e5dcc8] rounded-lg px-2.5 py-1.5"
                         >
                           <FiEdit2 className="text-[11px]" /> Edit
                         </Link>
