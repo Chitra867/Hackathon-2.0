@@ -40,24 +40,24 @@ export const UserLayout: React.FC = () => {
      * h-screen + flex-col gives us a precise full-viewport column.
      * overflow-hidden prevents any child from blowing past the viewport.
      */
-    <div className="h-screen flex flex-col bg-[#faf6ee] overflow-hidden">
+    <div className="h-screen flex flex-col bg-[#faedd7] overflow-hidden">
 
       {/* ── Top navbar — fixed height ─────────────────────── */}
-      <header className="flex-shrink-0 bg-white border-b border-[#ede0ce] px-4 h-14 flex items-center justify-between z-20 shadow-sm">
+      <header className="flex-shrink-0 bg-white border-b border-[#e5dcc8] px-4 h-14 flex items-center justify-between z-20 shadow-sm">
         <Link to="/user/dashboard" className="flex items-center gap-2">
-          <GiHeartPlus className="text-2xl text-primary-700" />
-          <span className="text-lg font-bold text-primary-800 hidden sm:block">UpacharKhoj</span>
+          <GiHeartPlus className="text-2xl text-[#216d73]" />
+          <span className="text-lg font-bold text-[#1c3d3f] hidden sm:block">UpacharKhoj</span>
         </Link>
         <div className="flex items-center gap-3">
-          <span className="hidden sm:block text-sm text-[#8a7a63]">
+          <span className="hidden sm:block text-sm text-[#6b7d79]">
             Welcome,{' '}
-            <span className="font-semibold text-[#172554]">
+            <span className="font-semibold text-[#1c3d3f]">
               {user?.first_name || user?.username}
             </span>
           </span>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-xs text-[#8a7a63] hover:text-red-600 transition-colors px-2 py-1.5 rounded-lg hover:bg-red-50"
+            className="flex items-center gap-1.5 text-xs text-[#6b7d79] hover:text-[#a15b4a] transition-colors px-2 py-1.5 rounded-lg hover:bg-[#f6e9e5]"
           >
             <FiLogOut />
             <span className="hidden sm:block">Logout</span>
@@ -74,22 +74,22 @@ export const UserLayout: React.FC = () => {
 
         {/* ── Sidebar (desktop) ─────────────────────────── */}
         <aside
-          className={`hidden md:flex flex-col flex-shrink-0 bg-white border-r border-[#ede0ce] transition-all duration-200 ${
+          className={`hidden md:flex flex-col flex-shrink-0 bg-white border-r border-[#e5dcc8] transition-all duration-200 ${
             collapsed ? 'w-16' : 'w-56'
           }`}
         >
           {/* Portal badge */}
           {!collapsed ? (
-            <div className="flex-shrink-0 bg-primary-700 px-4 py-2.5">
+            <div className="flex-shrink-0 bg-[#216d73] px-4 py-2.5">
               <p className="text-white text-xs font-semibold tracking-wide uppercase flex items-center gap-1.5">
                 <FiActivity /> Patient Portal
               </p>
-              <p className="text-white/70 text-xs truncate">
+              <p className="text-[#cfe3e1] text-xs truncate">
                 {user?.full_name || user?.username}
               </p>
             </div>
           ) : (
-            <div className="flex-shrink-0 bg-primary-700 flex items-center justify-center py-2.5">
+            <div className="flex-shrink-0 bg-[#216d73] flex items-center justify-center py-2.5">
               <FiActivity className="text-white" />
             </div>
           )}
@@ -105,8 +105,8 @@ export const UserLayout: React.FC = () => {
                     title={collapsed ? item.label : undefined}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                       active
-                        ? 'bg-[#ede0ce] text-[#4a3a24] border border-[#d9c39e]'
-                        : 'text-[#8a7a63] hover:bg-[#faf1e0] hover:text-[#4a3a24]'
+                        ? 'bg-[#eef3f2] text-[#216d73] border border-[#c7dbd8]'
+                        : 'text-[#6b7d79] hover:bg-[#faf6ee] hover:text-[#1c3d3f]'
                     }`}
                   >
                     <span className="text-base flex-shrink-0">{item.icon}</span>
@@ -119,10 +119,10 @@ export const UserLayout: React.FC = () => {
 
           {/* Logout button */}
           {!collapsed && (
-            <div className="flex-shrink-0 px-2 pb-3 border-t border-[#ede0ce] pt-2">
+            <div className="flex-shrink-0 px-2 pb-3 border-t border-[#e5dcc8] pt-2">
               <button
                 onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#a15b4a] hover:bg-[#f6e9e5] transition-colors"
               >
                 <FiLogOut className="flex-shrink-0" />
                 Logout
@@ -133,7 +133,7 @@ export const UserLayout: React.FC = () => {
           {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed(c => !c)}
-            className="flex-shrink-0 flex items-center justify-center h-10 border-t border-[#ede0ce] text-[#a89a82] hover:text-[#4a3a24] hover:bg-[#faf1e0] transition-colors"
+            className="flex-shrink-0 flex items-center justify-center h-10 border-t border-[#e5dcc8] text-[#aabfb9] hover:text-[#216d73] hover:bg-[#faf6ee] transition-colors"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <FiChevronRight /> : <FiChevronLeft />}
@@ -151,7 +151,7 @@ export const UserLayout: React.FC = () => {
       </div>
 
       {/* ── Mobile bottom nav ─────────────────────────────── */}
-      <nav className="md:hidden flex-shrink-0 fixed bottom-0 left-0 right-0 bg-white border-t border-[#ede0ce] z-30 flex overflow-x-auto">
+      <nav className="md:hidden flex-shrink-0 fixed bottom-0 left-0 right-0 bg-white border-t border-[#e5dcc8] z-30 flex overflow-x-auto">
         {NAV_ITEMS.map(item => {
           const active = isActive(item.to);
           return (
@@ -159,7 +159,7 @@ export const UserLayout: React.FC = () => {
               key={item.to}
               to={item.to}
               className={`flex-shrink-0 flex flex-col items-center justify-center py-2 px-3 text-xs transition-colors ${
-                active ? 'text-primary-700' : 'text-[#a89a82]'
+                active ? 'text-[#216d73]' : 'text-[#aabfb9]'
               }`}
             >
               <span className="text-lg">{item.icon}</span>

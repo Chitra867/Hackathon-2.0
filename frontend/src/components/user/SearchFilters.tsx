@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { FiSearch, FiMapPin, FiAlertTriangle, FiX } from 'react-icons/fi';
+import { FiSearch, FiMapPin, FiAlertTriangle, FiX, FiChevronDown } from 'react-icons/fi';
 import { FaHospital } from 'react-icons/fa';
 import { MdMedicalServices, MdLocalHospital } from 'react-icons/md';
 import { userPortalApi } from '../../lib/api';
@@ -34,14 +34,18 @@ interface Props {
   loading?: boolean;
 }
 
+// Suggestion "kind" badges share one teal/tan tint system instead of a
+// different hue per type, so the search dropdown doesn't compete visually
+// with the rest of the app. Icons still differ so kinds stay scannable.
+const suggestionStyle: Record<SearchSuggestion['type'], { icon: React.ReactNode; badge: string }> = {
+  hospital:  { icon: <FaHospital />,          badge: 'bg-[#eef3f2] text-[#216d73]' },
+  service:   { icon: <MdMedicalServices />,   badge: 'bg-[#eef3f2] text-[#538b8c]' },
+  specialty: { icon: <MdLocalHospital />,     badge: 'bg-[#f2ece0] text-[#8a7350]' },
+  district:  { icon: <FiMapPin />,            badge: 'bg-[#eef1f0] text-[#6b7d79]' },
+};
+
 function SuggestionIcon({ type }: { type: SearchSuggestion['type'] }) {
-  switch (type) {
-    case 'hospital':  return <FaHospital className="text-primary-600 flex-shrink-0" />;
-    case 'service':   return <MdMedicalServices className="text-green-600 flex-shrink-0" />;
-    case 'specialty': return <MdLocalHospital className="text-amber-600 flex-shrink-0" />;
-    case 'district':  return <FiMapPin className="text-blue-500 flex-shrink-0" />;
-    default:          return <FiSearch className="text-gray-400 flex-shrink-0" />;
-  }
+  return <span className="flex-shrink-0 text-[#aabfb9]">{suggestionStyle[type]?.icon ?? <FiSearch />}</span>;
 }
 
 function typeLabel(type: SearchSuggestion['type']) {
@@ -53,6 +57,9 @@ function typeLabel(type: SearchSuggestion['type']) {
     default:          return '';
   }
 }
+
+const fieldClass =
+  'w-full rounded-xl border border-[#e5dcc8] bg-white text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c] transition-shadow';
 
 export const SearchFilters: React.FC<Props> = ({
   filters,
@@ -156,7 +163,7 @@ export const SearchFilters: React.FC<Props> = ({
 
       {/* ── Search input ─────────────────────────────────── */}
       <div className="relative" ref={containerRef}>
-        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base z-10 pointer-events-none" />
+        <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aabfb9] text-base z-10 pointer-events-none" />
         <input
           type="text"
           value={filters.q}
@@ -164,7 +171,7 @@ export const SearchFilters: React.FC<Props> = ({
           onKeyDown={handleKey}
           onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
           placeholder="Search hospitals…"
-          className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-[#ede0ce] bg-white text-sm text-[#172554] placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-300 transition-shadow"
+          className={`${fieldClass} pl-10 pr-9 py-2.5`}
           autoComplete="off"
           aria-autocomplete="list"
           aria-expanded={showDropdown}
@@ -178,7 +185,7 @@ export const SearchFilters: React.FC<Props> = ({
               setShowDropdown(false);
               onSearch(next); // clear → re-run search with empty q
             }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aabfb9] hover:text-[#538b8c] z-10"
             aria-label="Clear search"
             tabIndex={-1}
           >
@@ -190,7 +197,7 @@ export const SearchFilters: React.FC<Props> = ({
         {showDropdown && suggestions.length > 0 && (
           <ul
             role="listbox"
-            className="absolute z-50 w-full top-full mt-1 bg-white border border-[#ede0ce] rounded-xl shadow-lg overflow-hidden"
+            className="absolute z-50 w-full top-full mt-1.5 bg-white border border-[#e5dcc8] rounded-xl shadow-lg overflow-hidden"
           >
             {suggestions.map((s, idx) => (
               <li
@@ -201,23 +208,18 @@ export const SearchFilters: React.FC<Props> = ({
                 onMouseEnter={() => setActiveIdx(idx)}
                 className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer text-sm transition-colors ${
                   idx === activeIdx
-                    ? 'bg-primary-50 text-primary-800'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-[#eef3f2] text-[#1c3d3f]'
+                    : 'text-[#1c3d3f] hover:bg-[#faf6ee]'
                 }`}
               >
                 <SuggestionIcon type={s.type} />
                 <span className="flex-1 min-w-0">
                   <span className="font-medium truncate block">{s.label}</span>
                   {s.subtitle && (
-                    <span className="text-xs text-gray-400">{s.subtitle}</span>
+                    <span className="text-xs text-[#a3988a]">{s.subtitle}</span>
                   )}
                 </span>
-                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 ${
-                  s.type === 'hospital'  ? 'bg-primary-100 text-primary-700' :
-                  s.type === 'service'   ? 'bg-green-100 text-green-700' :
-                  s.type === 'specialty' ? 'bg-amber-100 text-amber-700' :
-                                           'bg-blue-100 text-blue-700'
-                }`}>
+                <span className={`text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium ${suggestionStyle[s.type]?.badge ?? 'bg-[#eef1f0] text-[#6b7d79]'}`}>
                   {typeLabel(s.type)}
                 </span>
               </li>
@@ -230,20 +232,21 @@ export const SearchFilters: React.FC<Props> = ({
       <div className="flex gap-2">
         {/* District picker */}
         <div className="relative flex-1 min-w-0">
-          <FiMapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none" />
+          <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aabfb9] text-sm pointer-events-none z-10" />
           <select
             value={filters.district}
             onChange={e => {
               const next = update({ district: e.target.value });
               onSearch(next); // auto-search on district change
             }}
-            className="w-full pl-8 pr-2 py-2.5 rounded-xl border border-[#ede0ce] bg-white text-sm text-[#172554] focus:outline-none focus:ring-2 focus:ring-primary-300 appearance-none cursor-pointer"
+            className={`${fieldClass} pl-9 pr-8 py-2.5 appearance-none cursor-pointer`}
           >
             <option value="">All Districts</option>
             {NEPAL_DISTRICTS.map(d => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
+          <FiChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#aabfb9] text-sm pointer-events-none" />
         </div>
 
         {/* Emergency toggle */}
@@ -255,8 +258,8 @@ export const SearchFilters: React.FC<Props> = ({
           }}
           className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
             filters.emergency
-              ? 'bg-red-600 text-white border-red-600 hover:bg-red-700'
-              : 'border-[#ede0ce] bg-white text-[#8a7a63] hover:bg-red-50 hover:border-red-200 hover:text-red-600'
+              ? 'bg-[#a15b4a] text-white border-[#a15b4a] hover:bg-[#8a4a3b]'
+              : 'border-[#e5dcc8] bg-white text-[#6b7d79] hover:bg-[#f6e9e5] hover:border-[#e6c6bb] hover:text-[#a15b4a]'
           }`}
           title="Show only hospitals with emergency service"
         >
@@ -268,7 +271,7 @@ export const SearchFilters: React.FC<Props> = ({
         <button
           onClick={handleSearchButton}
           disabled={loading}
-          className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary-700 text-white text-sm font-semibold hover:bg-primary-800 transition-colors disabled:opacity-60"
+          className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-[#216d73] text-white text-sm font-semibold hover:bg-[#184f54] transition-colors disabled:opacity-60 shadow-sm"
         >
           {loading ? (
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
