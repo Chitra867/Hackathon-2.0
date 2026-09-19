@@ -1,51 +1,32 @@
-import React, {
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+
+import React, { useEffect, useMemo, useState } from 'react';
 
 import {
-  useSearchParams,
   Link,
+  useSearchParams,
 } from 'react-router-dom';
 
 import {
   FiSearch,
   FiMapPin,
-  FiPhone,
+  FiArrowRight,
+  FiLock,
+  FiRefreshCw,
+  FiChevronLeft,
   FiChevronRight,
-  FiClock,
+  FiX,
   FiShield,
   FiHeart,
-  FiUsers,
-  FiRefreshCw,
-  FiX,
-  FiChevronLeft,
+  FiCheckCircle,
 } from 'react-icons/fi';
 
-import {
-  hospitalsApi,
-  servicesApi,
-} from '../../lib/api';
+import { GiHeartPlus } from 'react-icons/gi';
 
-import type {
-  HospitalListItem,
-  Service,
-} from '../../types';
+import { hospitalsApi } from '../../lib/api';
 
-import { StatusBadge } from '../../components/common/StatusBadge';
+import type { HospitalListItem } from '../../types';
 
-import { FreshnessTag } from '../../components/common/FreshnessTag';
-
-import {
-  LoadingSpinner,
-  EmptyState,
-} from '../../components/common/LoadingSpinner';
-
-import {
-  format,
-  isValid,
-} from 'date-fns';
+import { useAuthStore } from '../../store/authStore';
 
 import heroImage from './images/hero.png';
 
@@ -55,561 +36,127 @@ import heroImage from './images/hero.png';
 
 const PAGE_SIZE = 12;
 
-const NEPAL_DISTRICTS = [
-  'Achham',
-  'Arghakhanchi',
-  'Baglung',
-  'Baitadi',
-  'Bajhang',
-  'Bajura',
-  'Banke',
-  'Bara',
-  'Bardiya',
-  'Bhaktapur',
-  'Bhojpur',
-  'Chitwan',
-  'Dadeldhura',
-  'Dailekh',
-  'Dang',
-  'Darchula',
-  'Dhading',
-  'Dhankuta',
-  'Dhanusha',
-  'Dolakha',
-  'Dolpa',
-  'Doti',
-  'Gorkha',
-  'Gulmi',
-  'Humla',
-  'Ilam',
-  'Jajarkot',
-  'Jhapa',
-  'Jumla',
-  'Kailali',
-  'Kalikot',
-  'Kanchanpur',
-  'Kapilvastu',
-  'Kaski',
-  'Kathmandu',
-  'Kavrepalanchok',
-  'Khotang',
-  'Lalitpur',
-  'Lamjung',
-  'Mahottari',
-  'Makwanpur',
-  'Manang',
-  'Morang',
-  'Mugu',
-  'Mustang',
-  'Myagdi',
-  'Nawalpur',
-  'Nuwakot',
-  'Okhaldhunga',
-  'Palpa',
-  'Panchthar',
-  'Parasi',
-  'Parbat',
-  'Parsa',
-  'Pyuthan',
-  'Ramechhap',
-  'Rasuwa',
-  'Rautahat',
-  'Rolpa',
-  'Rukum East',
-  'Rukum West',
-  'Rupandehi',
-  'Salyan',
-  'Sankhuwasabha',
-  'Saptari',
-  'Sarlahi',
-  'Sindhuli',
-  'Sindhupalchok',
-  'Siraha',
-  'Solukhumbu',
-  'Sunsari',
-  'Surkhet',
-  'Syangja',
-  'Tanahun',
-  'Taplejung',
-  'Terhathum',
-  'Udayapur',
-];
-
-const POPULAR_SERVICES = [
-  'ICU',
-  'Cardiology',
-  'Dialysis',
-  'MRI',
-  'CT Scan',
-  'Maternity',
-  'NICU',
-];
-
-// --------------------------------------------------
-// TYPES
-// --------------------------------------------------
-
-interface PaginatedResponse<T> {
-  results: T[];
-  count?: number;
+interface HospitalListResponse {
+  results: HospitalListItem[];
   next?: string | null;
 }
-
-interface BedInformation {
-  label: string;
-  count: number;
-}
-
-// --------------------------------------------------
-// HELPER FUNCTIONS
-// --------------------------------------------------
-
-const safeText = (value: unknown): string => {
-  if (
-    typeof value === 'string' ||
-    typeof value === 'number'
-  ) {
-    return String(value);
-  }
-
-  return '';
-};
-
-const formatDate = (value: unknown): string => {
-  if (
-    typeof value !== 'string' &&
-    typeof value !== 'number'
-  ) {
-    return '—';
-  }
-
-  const date = new Date(value);
-
-  if (!isValid(date)) {
-    return '—';
-  }
-
-  return format(date, 'MMM d, HH:mm');
-};
-
-const formatPhone = (value: unknown): string | null => {
-  const phone = safeText(value)
-    .trim()
-    .replace(/[^\d+]/g, '')
-    .replace(/(?!^)\+/g, '');
-
-  if (!/^\+?\d{5,15}$/.test(phone)) {
-    return null;
-  }
-
-  return phone;
-};
-
-const getPageNumber = (value: string | null): number => {
-  if (!value) {
-    return 1;
-  }
-
-  const parsed = Number(value);
-
-  if (
-    !Number.isSafeInteger(parsed) ||
-    parsed < 1
-  ) {
-    return 1;
-  }
-
-  return parsed;
-};
-
-const parseListResponse = <T,>(
-  data: unknown,
-): {
-  results: T[];
-  count: number | null;
-  hasNext: boolean;
-  paginated: boolean;
-} => {
-  // Supports APIs returning an array directly.
-
-  if (Array.isArray(data)) {
-    return {
-      results: data as T[],
-      count: data.length,
-      hasNext: false,
-      paginated: false,
-    };
-  }
-
-  // Supports Django REST Framework pagination.
-
-  if (
-    data !== null &&
-    typeof data === 'object' &&
-    'results' in data
-  ) {
-    const response = data as PaginatedResponse<T>;
-
-    if (!Array.isArray(response.results)) {
-      throw new Error(
-        'Invalid API response: results must be an array.',
-      );
-    }
-
-    const count =
-      typeof response.count === 'number' &&
-      Number.isFinite(response.count)
-        ? response.count
-        : null;
-
-    return {
-      results: response.results,
-      count,
-      hasNext:
-        typeof response.next === 'string' &&
-        response.next.length > 0,
-      paginated: true,
-    };
-  }
-
-  throw new Error(
-    'Unexpected API response format.',
-  );
-};
-
-// --------------------------------------------------
-// AVAILABILITY HELPERS
-// --------------------------------------------------
-
-const getActiveAvailability = (
-  hospital: HospitalListItem,
-) => {
-  if (!Array.isArray(hospital.availability)) {
-    return [];
-  }
-
-  return hospital.availability.filter(
-    (availability) => availability.is_active === true,
-  );
-};
-
-const getTopAvailability = (
-  hospital: HospitalListItem,
-) => {
-  return getActiveAvailability(hospital).slice(0, 3);
-};
-
-const getRelevantAvailability = (
-  hospital: HospitalListItem,
-  serviceQuery: string,
-) => {
-  const active = getActiveAvailability(hospital);
-
-  const query = serviceQuery.trim().toLowerCase();
-
-  if (!query) {
-    return active.slice(0, 3);
-  }
-
-  const matching = active.filter((availability) => {
-    const serviceName = safeText(
-      availability.service_name,
-    ).toLowerCase();
-
-    const availabilityType = safeText(
-      availability.availability_type,
-    ).toLowerCase();
-
-    const availabilityLabel = safeText(
-      availability.availability_type_display,
-    ).toLowerCase();
-
-    return (
-      serviceName.includes(query) ||
-      availabilityType.includes(query) ||
-      availabilityLabel.includes(query)
-    );
-  });
-
-  // Do not display unrelated resources as though
-  // they were availability for the searched service.
-
-  return matching.slice(0, 3);
-};
-
-const getBedInformation = (
-  hospital: HospitalListItem,
-): BedInformation | null => {
-  const active = getActiveAvailability(hospital);
-
-  const bedRecords = active.filter((availability) => {
-    const type = safeText(
-      availability.availability_type,
-    ).toLowerCase();
-
-    return (
-      type.includes('bed') &&
-      availability.available_count !== null &&
-      availability.available_count !== undefined
-    );
-  });
-
-  if (bedRecords.length === 0) {
-    return null;
-  }
-
-  // Prefer a general bed record when one exists.
-  // Keep the record's actual type in the displayed
-  // label instead of calling every count total beds.
-
-  const bedRecord =
-    bedRecords.find((record) => {
-      const type = safeText(
-        record.availability_type,
-      ).toLowerCase();
-
-      return [
-        'bed',
-        'beds',
-        'general_bed',
-        'general_beds',
-      ].includes(type);
-    }) || bedRecords[0];
-
-  const count = Number(bedRecord.available_count);
-
-  if (
-    !Number.isFinite(count) ||
-    count < 0
-  ) {
-    return null;
-  }
-
-  return {
-    label:
-      safeText(
-        bedRecord.availability_type_display,
-      ) ||
-      safeText(bedRecord.availability_type)
-        .replace(/_/g, ' '),
-
-    count,
-  };
-};
-
-const getLatestUpdate = (
-  hospital: HospitalListItem,
-): string | null => {
-  const availability = getActiveAvailability(hospital);
-
-  let latestTimestamp = -Infinity;
-
-  for (const record of availability) {
-    if (!record.updated_at) {
-      continue;
-    }
-
-    const date = new Date(record.updated_at);
-
-    if (!isValid(date)) {
-      continue;
-    }
-
-    latestTimestamp = Math.max(
-      latestTimestamp,
-      date.getTime(),
-    );
-  }
-
-  if (!Number.isFinite(latestTimestamp)) {
-    return null;
-  }
-
-  return formatDate(latestTimestamp);
-};
 
 // --------------------------------------------------
 // MAIN COMPONENT
 // --------------------------------------------------
 
 export const SearchPage: React.FC = () => {
-  const [
-    searchParams,
-    setSearchParams,
-  ] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  // ------------------------------------------------
-  // URL PARAMETERS
-  // ------------------------------------------------
+  const { isAuthenticated } = useAuthStore();
 
-  const serviceQ =
-    searchParams.get('service')?.trim() || '';
+  const authenticated = isAuthenticated();
 
-  const districtQ =
+  // URL search parameters
+  const hospitalQuery =
+    searchParams.get('search')?.trim() || '';
+
+  const districtQuery =
     searchParams.get('district')?.trim() || '';
 
-  const currentPage = getPageNumber(
-    searchParams.get('page'),
+  // Form state
+  const [searchInput, setSearchInput] = useState(
+    hospitalQuery
   );
 
-  // ------------------------------------------------
-  // STATE
-  // ------------------------------------------------
+  const [districtInput, setDistrictInput] = useState(
+    districtQuery
+  );
 
+  // Hospital data
   const [hospitals, setHospitals] = useState<
     HospitalListItem[]
   >([]);
 
-  const [services, setServices] = useState<
-    Service[]
-  >([]);
-
   const [loading, setLoading] = useState(true);
 
-  const [error, setError] = useState<
-    string | null
-  >(null);
+  const [error, setError] = useState('');
 
-  const [total, setTotal] = useState<
-    number | null
-  >(null);
+  const [page, setPage] = useState(1);
 
-  const [hasNextPage, setHasNextPage] =
-    useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const [totalPages, setTotalPages] =
-    useState(1);
-
-  const [searchInput, setSearchInput] =
-    useState(serviceQ);
-
-  const [districtInput, setDistrictInput] =
-    useState(districtQ);
-
-  const [refreshKey, setRefreshKey] =
-    useState(0);
-
-  // ------------------------------------------------
+  // --------------------------------------------------
   // SYNCHRONIZE INPUTS WITH URL
-  // ------------------------------------------------
+  // --------------------------------------------------
 
   useEffect(() => {
-    setSearchInput(serviceQ);
-    setDistrictInput(districtQ);
-  }, [serviceQ, districtQ]);
+    setSearchInput(hospitalQuery);
+    setDistrictInput(districtQuery);
+    setPage(1);
+  }, [hospitalQuery, districtQuery]);
 
-  // ------------------------------------------------
+  // --------------------------------------------------
   // LOAD HOSPITALS
-  // ------------------------------------------------
+  // --------------------------------------------------
 
   useEffect(() => {
     let cancelled = false;
 
-    const fetchHospitals = async () => {
+    const loadHospitals = async () => {
       setLoading(true);
-      setError(null);
+      setError('');
 
       try {
-        const params: Record<string, string> = {
-          page: String(currentPage),
-          page_size: String(PAGE_SIZE),
-        };
+        const allHospitals: HospitalListItem[] = [];
 
-        if (serviceQ) {
-          params.service = serviceQ;
-        }
+        let currentPage = 1;
 
-        if (districtQ) {
-          params.district = districtQ;
-        }
+        while (true) {
+          const response = await hospitalsApi.list({
+            page: currentPage,
+            page_size: 100,
+          });
 
-        const response = await hospitalsApi.list(params);
+          if (cancelled) return;
 
-        if (cancelled) {
-          return;
-        }
+          const data = response.data as
+            | HospitalListResponse
+            | HospitalListItem[];
 
-        const result =
-          parseListResponse<HospitalListItem>(
-            response.data,
-          );
-
-        let fetchedHospitals = result.results;
-
-        let nextPage = result.hasNext;
-
-        let count = result.count;
-
-        let pages = 1;
-
-        // Handle an API returning a complete
-        // unpaginated array.
-
-        if (!result.paginated) {
-          pages = Math.max(
-            1,
-            Math.ceil(
-              fetchedHospitals.length / PAGE_SIZE,
-            ),
-          );
-
-          const start =
-            (currentPage - 1) * PAGE_SIZE;
-
-          fetchedHospitals =
-            fetchedHospitals.slice(
-              start,
-              start + PAGE_SIZE,
-            );
-
-          nextPage = currentPage < pages;
-        } else {
-          // Standard DRF pagination.
-
-          if (count !== null) {
-            pages = Math.max(
-              1,
-              Math.ceil(count / PAGE_SIZE),
-            );
-
-            nextPage =
-              result.hasNext ||
-              currentPage < pages;
+          // Support an API returning an array.
+          if (Array.isArray(data)) {
+            allHospitals.push(...data);
+            break;
           }
+
+          // Support paginated Django REST responses.
+          if (!Array.isArray(data.results)) {
+            throw new Error(
+              'Invalid hospital API response'
+            );
+          }
+
+          allHospitals.push(...data.results);
+
+          if (!data.next) {
+            break;
+          }
+
+          currentPage += 1;
         }
 
-        if (cancelled) {
-          return;
+        if (!cancelled) {
+          setHospitals(allHospitals);
         }
-
-        setHospitals(fetchedHospitals);
-
-        setTotal(count);
-
-        setTotalPages(pages);
-
-        setHasNextPage(nextPage);
       } catch (err) {
-        if (cancelled) {
-          return;
-        }
-
         console.error(
           'Failed to load hospitals:',
-          err,
+          err
         );
 
-        setHospitals([]);
+        if (!cancelled) {
+          setHospitals([]);
 
-        setTotal(null);
-
-        setTotalPages(1);
-
-        setHasNextPage(false);
-
-        setError(
-          'Unable to load hospitals. Please check your connection and try again.',
-        );
+          setError(
+            'Unable to load hospitals. Please check your connection and try again.'
+          );
+        }
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -617,162 +164,129 @@ export const SearchPage: React.FC = () => {
       }
     };
 
-    void fetchHospitals();
-
-    // Prevent previous searches from overwriting
-    // results from a newer search.
+    void loadHospitals();
 
     return () => {
       cancelled = true;
     };
-  }, [
-    serviceQ,
-    districtQ,
-    currentPage,
-    refreshKey,
-  ]);
+  }, [refreshKey]);
 
-  // ------------------------------------------------
-  // LOAD SERVICE SUGGESTIONS
-  // ------------------------------------------------
+  // --------------------------------------------------
+  // DISTRICT OPTIONS
+  // --------------------------------------------------
 
-  useEffect(() => {
-    let cancelled = false;
+  const districts = useMemo(() => {
+    const names = hospitals
+      .map((hospital) => hospital.district)
+      .filter(
+        (district): district is string =>
+          typeof district === 'string' &&
+          district.trim().length > 0
+      );
 
-    const fetchServices = async () => {
-      try {
-        const response = await servicesApi.list();
+    return [...new Set(names)].sort((a, b) =>
+      a.localeCompare(b)
+    );
+  }, [hospitals]);
 
-        if (cancelled) {
-          return;
-        }
+  // --------------------------------------------------
+  // FILTER HOSPITALS
+  // --------------------------------------------------
 
-        const result = parseListResponse<Service>(
-          response.data,
-        );
+  const filteredHospitals = useMemo(() => {
+    const query = hospitalQuery.toLowerCase();
 
-        setServices(result.results);
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
+    const district = districtQuery.toLowerCase();
 
-        console.error(
-          'Failed to load service suggestions:',
-          err,
-        );
+    return hospitals.filter((hospital) => {
+      const name = (
+        hospital.name || ''
+      ).toLowerCase();
 
-        setServices([]);
-      }
-    };
+      const hospitalDistrict = (
+        hospital.district || ''
+      ).toLowerCase();
 
-    void fetchServices();
+      const matchesName =
+        !query || name.includes(query);
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+      const matchesDistrict =
+        !district ||
+        hospitalDistrict === district;
 
-  // ------------------------------------------------
-  // UPDATE SEARCH PARAMETERS
-  // ------------------------------------------------
+      return matchesName && matchesDistrict;
+    });
+  }, [hospitals, hospitalQuery, districtQuery]);
 
-  const updateSearch = (
-    service: string,
-    district: string,
-    page = 1,
-  ) => {
-    const params: Record<string, string> = {};
+  // --------------------------------------------------
+  // PAGINATION
+  // --------------------------------------------------
 
-    const cleanService = service.trim();
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredHospitals.length / PAGE_SIZE)
+  );
 
-    const cleanDistrict = district.trim();
+  const paginatedHospitals = filteredHospitals.slice(
+    (page - 1) * PAGE_SIZE,
+    page * PAGE_SIZE
+  );
 
-    if (cleanService) {
-      params.service = cleanService;
-    }
-
-    if (cleanDistrict) {
-      params.district = cleanDistrict;
-    }
-
-    if (page > 1) {
-      params.page = String(page);
-    }
-
-    setSearchParams(params);
-  };
-
-  // ------------------------------------------------
+  // --------------------------------------------------
   // SEARCH
-  // ------------------------------------------------
+  // --------------------------------------------------
 
   const handleSearch = (
-    event: React.FormEvent<HTMLFormElement>,
+    event: React.FormEvent<HTMLFormElement>
   ) => {
     event.preventDefault();
 
-    updateSearch(
-      searchInput,
-      districtInput,
-      1,
-    );
+    const params: Record<string, string> = {};
+
+    if (searchInput.trim()) {
+      params.search = searchInput.trim();
+    }
+
+    if (districtInput.trim()) {
+      params.district = districtInput.trim();
+    }
+
+    setPage(1);
+    setSearchParams(params);
   };
 
-  // ------------------------------------------------
-  // QUICK SERVICE
-  // ------------------------------------------------
-
-  const handleQuickService = (
-    serviceName: string,
-  ) => {
-    setSearchInput(serviceName);
-
-    updateSearch(
-      serviceName,
-      districtInput,
-      1,
-    );
-  };
-
-  // ------------------------------------------------
+  // --------------------------------------------------
   // CLEAR FILTERS
-  // ------------------------------------------------
+  // --------------------------------------------------
 
-  const clearAllFilters = () => {
+  const clearFilters = () => {
     setSearchInput('');
-
     setDistrictInput('');
-
+    setPage(1);
     setSearchParams({});
   };
 
-  // ------------------------------------------------
+  // --------------------------------------------------
   // REFRESH
-  // ------------------------------------------------
+  // --------------------------------------------------
 
   const refreshHospitals = () => {
     setRefreshKey((previous) => previous + 1);
   };
 
-  // ------------------------------------------------
-  // PAGINATION
-  // ------------------------------------------------
+  // --------------------------------------------------
+  // CHANGE PAGE
+  // --------------------------------------------------
 
-  const goToPage = (page: number) => {
+  const goToPage = (nextPage: number) => {
     if (
-      loading ||
-      page < 1 ||
-      page === currentPage
+      nextPage < 1 ||
+      nextPage > totalPages
     ) {
       return;
     }
 
-    updateSearch(
-      serviceQ,
-      districtQ,
-      page,
-    );
+    setPage(nextPage);
 
     window.scrollTo({
       top: 0,
@@ -780,34 +294,20 @@ export const SearchPage: React.FC = () => {
     });
   };
 
-  // ------------------------------------------------
-  // SERVICE SUGGESTIONS
-  // ------------------------------------------------
-
-  const serviceSuggestions = useMemo(() => {
-    const names = [
-      ...POPULAR_SERVICES,
-      ...services.map((service) => service.name),
-    ];
-
-    return [...new Set(names)].filter(Boolean);
-  }, [services]);
-
-  // ------------------------------------------------
+  // --------------------------------------------------
   // RENDER
-  // ------------------------------------------------
+  // --------------------------------------------------
 
   return (
     <div className="min-h-screen bg-[#f8f4eb]">
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 sm:py-6">
 
-        {/* ----------------------------------------
-            HERO SECTION
-        ---------------------------------------- */}
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
 
-        <section className="relative mb-6 overflow-hidden rounded-[24px] border border-[#dfd1b5] shadow-[0_12px_35px_rgba(78,58,26,0.10)] md:rounded-[30px] md:min-h-[440px]">
+        {/* HERO SECTION */}
 
-          {/* HERO IMAGE */}
+        <section className="relative mb-10 overflow-hidden rounded-[30px] border border-[#dfd1b5] shadow-[0_18px_45px_rgba(78,58,26,0.12)]">
+
+          {/* HOSPITAL BACKGROUND IMAGE */}
 
           <div
             className="absolute inset-0 bg-cover bg-no-repeat"
@@ -817,121 +317,139 @@ export const SearchPage: React.FC = () => {
             }}
           />
 
-          {/* LEFT OVERLAY */}
+          {/* CREAM OVERLAY ON LEFT */}
 
-          <div className="absolute inset-0 bg-gradient-to-r from-[#faedd6] via-[#f7ead3]/75 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#faedd6]/95 via-[#f7ead3]/45 to-transparent" />
 
-          {/* BOTTOM OVERLAY */}
+          {/* SUBTLE BOTTOM OVERLAY */}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-[#d8cbb3]/30 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#d8cbb3]/20 via-transparent to-transparent" />
 
           {/* HERO CONTENT */}
 
-          <div className="relative z-10 px-5 pb-5 pt-7 md:px-11 md:pb-[200px] md:pt-11">
-            <div className="max-w-[610px]">
+          <div className="relative z-10 px-7 pb-8 pt-10 md:px-11 md:pb-[215px] md:pt-11">
 
-              <h1 className="text-[32px] font-bold leading-[0.98] tracking-[-0.035em] text-[#13295b] sm:text-[44px] lg:text-[56px]">
-                Find the right care
+            <div className="max-w-[660px]">
 
-                <span className="block text-[#08606a]">
-                  before you travel.
+              {/* BRAND BADGE */}
+
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#d9e3df] bg-white/95 px-4 py-2 text-xs font-semibold text-[#07545e] shadow-sm">
+
+                <GiHeartPlus className="text-base text-[#07545e]" />
+
+                UPACHARKHOJ NEPAL
+
+              </div>
+
+              {/* HERO TITLE */}
+
+              <h1 className="text-[36px] font-bold leading-[1.08] tracking-[-0.035em] text-[#13295b] sm:text-[46px] lg:text-[56px]">
+
+                Find the right hospital
+
+                <span className="mt-2 block text-[#08606a]">
+                  for your healthcare needs.
                 </span>
+
               </h1>
 
-              <p className="mt-5 max-w-[520px] text-[15px] leading-6 text-[#3f4851] md:text-base">
-                Search hospitals by treatment,
-                services, bed availability and
-                specialist availability across Nepal.
+              {/* DESCRIPTION */}
+
+              <p className="mt-5 max-w-[550px] text-[15px] font-medium leading-7 text-[#3f4851] md:text-base">
+
+                Search hospitals across Nepal by name or district.
+                Discover healthcare facilities and find the
+                information you need before visiting.
+
               </p>
 
-              {/* BENEFITS */}
+              {/* HERO BENEFITS */}
 
-              <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs font-medium text-[#4b4e47] sm:text-sm">
+              <div className="mt-7 flex flex-wrap gap-x-6 gap-y-3 text-sm font-medium text-[#394a4b]">
 
                 <span className="flex items-center gap-2">
-                  <FiShield className="text-[#c08c2d]" />
-                  Hospital-reported availability
+
+                  <FiSearch className="text-[#08606a]" />
+
+                  Search hospitals
+
                 </span>
 
                 <span className="flex items-center gap-2">
-                  <FiUsers className="text-[#c08c2d]" />
-                  Hospital information
+
+                  <FiMapPin className="text-[#08606a]" />
+
+                  Explore districts
+
                 </span>
 
                 <span className="flex items-center gap-2">
-                  <FiHeart className="text-[#c08c2d]" />
-                  Check before referral
+
+                  <FiShield className="text-[#08606a]" />
+
+                  Access hospital information
+
                 </span>
 
               </div>
 
             </div>
+
           </div>
 
-          {/* --------------------------------------
-              SEARCH PANEL
-          -------------------------------------- */}
+          {/* SEARCH PANEL */}
 
           <div className="relative z-20 mx-3 mb-4 mt-4 md:absolute md:bottom-4 md:left-6 md:right-6 md:m-0">
 
-            <div className="rounded-[18px] border border-white/60 bg-gradient-to-r from-[#f7eee0]/95 via-[#aabfba]/95 to-[#08616b]/95 p-3 shadow-[0_10px_28px_rgba(25,59,62,0.22)] backdrop-blur-md sm:p-4">
+            <div className="rounded-[22px] border border-white/60 bg-gradient-to-r from-[#f7eee0]/95 via-[#aabfba]/95 to-[#08616b]/95 p-4 shadow-[0_14px_35px_rgba(25,59,62,0.25)] backdrop-blur-md sm:p-5">
+
+              {/* SEARCH FORM */}
 
               <form
                 onSubmit={handleSearch}
                 className="grid grid-cols-1 items-end gap-2 sm:grid-cols-[1.5fr_0.8fr_auto]"
               >
 
-                {/* SERVICE SEARCH */}
+                {/* HOSPITAL NAME */}
 
                 <div>
+
                   <label
-                    htmlFor="hospital-service-search"
-                    className="mb-1.5 block text-[11px] font-semibold text-[#334155]"
+                    htmlFor="hospital-name-search"
+                    className="mb-2 block text-sm font-semibold text-[#30474a]"
                   >
-                    What service do you need?
+                    Hospital Name
                   </label>
 
                   <div className="relative">
 
                     <FiSearch
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#82949a]"
                       aria-hidden="true"
                     />
 
                     <input
-                      id="hospital-service-search"
+                      id="hospital-name-search"
                       type="search"
                       value={searchInput}
                       onChange={(event) =>
-                        setSearchInput(
-                          event.target.value,
-                        )
+                        setSearchInput(event.target.value)
                       }
-                      list="hospital-service-options"
-                      placeholder="e.g. ICU, Dialysis, Cardiology, Maternity..."
-                      className="h-11 w-full rounded-lg border border-white/80 bg-white/95 pl-9 pr-3 text-sm text-gray-800 shadow-sm outline-none focus:border-[#0c6670] focus:ring-2 focus:ring-[#0c6670]/20"
+                      placeholder="Search by hospital name..."
+                      className="h-12 w-full rounded-xl border border-white/80 bg-white pl-11 pr-4 text-sm text-[#173c40] shadow-sm outline-none transition focus:border-[#07545e] focus:ring-2 focus:ring-[#07545e]/20"
                     />
 
-                    <datalist id="hospital-service-options">
-                      {serviceSuggestions.map(
-                        (service) => (
-                          <option
-                            key={service}
-                            value={service}
-                          />
-                        ),
-                      )}
-                    </datalist>
-
                   </div>
+
                 </div>
 
                 {/* DISTRICT SEARCH */}
 
                 <div>
+
                   <label
                     htmlFor="hospital-district-search"
-                    className="mb-1.5 block text-[11px] font-semibold text-[#334155]"
+                    className="mb-2 block text-sm font-semibold text-[#30474a] md:text-[#173c40]"
                   >
                     Select District
                   </label>
@@ -939,7 +457,7 @@ export const SearchPage: React.FC = () => {
                   <div className="relative">
 
                     <FiMapPin
-                      className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-gray-500"
+                      className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-[#82949a]"
                       aria-hidden="true"
                     />
 
@@ -947,516 +465,380 @@ export const SearchPage: React.FC = () => {
                       id="hospital-district-search"
                       value={districtInput}
                       onChange={(event) =>
-                        setDistrictInput(
-                          event.target.value,
-                        )
+                        setDistrictInput(event.target.value)
                       }
-                      className="h-11 w-full rounded-lg border border-white/80 bg-white/95 pl-9 pr-3 text-sm text-gray-800 outline-none"
+                      className="h-12 w-full rounded-xl border border-white/80 bg-white pl-11 pr-4 text-sm text-[#173c40] shadow-sm outline-none transition focus:border-[#07545e] focus:ring-2 focus:ring-[#07545e]/20"
                     >
+
                       <option value="">
                         All Districts
                       </option>
 
                       {districtInput &&
-                        !NEPAL_DISTRICTS.includes(
-                          districtInput,
-                        ) && (
+                        !districts.includes(districtInput) && (
                           <option value={districtInput}>
                             {districtInput}
                           </option>
                         )}
 
-                      {NEPAL_DISTRICTS.map(
-                        (district) => (
-                          <option
-                            key={district}
-                            value={district}
-                          >
-                            {district}
-                          </option>
-                        ),
-                      )}
+                      {districts.map((district) => (
+
+                        <option
+                          key={district}
+                          value={district}
+                        >
+                          {district}
+                        </option>
+
+                      ))}
+
                     </select>
 
                   </div>
+
                 </div>
 
                 {/* SEARCH BUTTON */}
 
                 <button
                   type="submit"
-                  className="flex h-11 items-center justify-center gap-2 rounded-lg border border-[#d8b970]/60 bg-[#07545e] px-8 text-sm font-semibold text-white shadow-lg transition-all hover:bg-[#043f47]"
+                  className="flex h-12 items-center justify-center gap-2 rounded-xl border border-[#d8b970]/60 bg-[#07545e] px-7 text-sm font-semibold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:bg-[#043f47]"
                 >
-                  <FiSearch />
+
+                  <FiSearch className="text-base" />
 
                   Search Hospitals
+
                 </button>
 
               </form>
 
-              {/* POPULAR SERVICES */}
+              {/* SEARCH PANEL BOTTOM */}
 
-              <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-1">
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/30 pt-3">
 
-                <span className="mr-1 flex-shrink-0 text-xs font-semibold text-[#30474a]">
-                  Popular Services
-                </span>
+                <div className="flex items-center gap-2 text-xs font-medium text-[#30474a]">
 
-                {POPULAR_SERVICES.map((service) => {
-                  const active =
-                    serviceQ.toLowerCase() ===
-                    service.toLowerCase();
+                  <FiHeart className="text-[#07545e]" />
 
-                  return (
-                    <button
-                      key={service}
-                      type="button"
-                      onClick={() =>
-                        handleQuickService(service)
-                      }
-                      className={`flex-shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-all ${
-                        active
-                          ? 'border-[#07545e] bg-[#07545e] text-white'
-                          : 'border-white/60 bg-white/70 text-[#45555a] hover:bg-white hover:text-[#07545e]'
-                      }`}
-                    >
-                      {service}
-                    </button>
-                  );
-                })}
+                  Discover hospitals across Nepal
 
-                {(serviceQ || districtQ) && (
+                </div>
+
+                {(hospitalQuery || districtQuery) && (
+
                   <button
                     type="button"
-                    onClick={clearAllFilters}
-                    className="ml-auto flex flex-shrink-0 items-center gap-1 text-xs font-semibold text-white hover:underline"
+                    onClick={clearFilters}
+                    className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-[#173c40] transition hover:bg-white/30 md:text-white"
                   >
+
                     <FiX />
 
                     Clear Filters
+
                   </button>
+
                 )}
 
               </div>
 
             </div>
+
           </div>
 
         </section>
 
-        {/* ----------------------------------------
-            HOSPITAL RESULTS HEADER
-        ---------------------------------------- */}
+        {/* HOSPITAL RESULTS HEADER */}
 
-        <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+        <section>
 
-          <div>
-            <h2 className="text-2xl font-bold text-[#172554]">
-              Hospital Results
-            </h2>
+          <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
 
-            <p className="mt-1 text-sm text-[#64748b]">
-              Hospital-reported information from across Nepal
-            </p>
-          </div>
+            <div>
 
-          <div className="flex flex-wrap items-center gap-3">
+              <div className="mb-2 flex items-center gap-2">
 
-            <div
-              aria-live="polite"
-              className="text-sm text-[#64748b]"
-            >
-              {loading
-                ? 'Searching...'
-                : error
-                  ? 'Search unavailable'
-                  : (
-                    <>
-                      <strong className="text-[#172554]">
-                        {total !== null
-                          ? total
-                          : hospitals.length}
-                      </strong>
+                <span className="h-1 w-6 rounded-full bg-[#08606a]" />
 
-                      {total === null
-                        ? ' hospitals on this page'
-                        : total === 1
-                          ? ' hospital found'
-                          : ' hospitals found'}
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-[#08606a]">
+                  Explore Healthcare
+                </span>
 
-                      {serviceQ
-                        ? ` for "${serviceQ}"`
-                        : ''}
+              </div>
 
-                      {districtQ
-                        ? ` in ${districtQ}`
-                        : ''}
-                    </>
-                  )}
+              <h2 className="text-2xl font-bold text-[#13295b]">
+                Hospital Directory
+              </h2>
+
+              <p className="mt-2 text-sm text-[#64748b]">
+                Browse healthcare facilities across Nepal.
+              </p>
+
             </div>
 
-            {/* REFRESH BUTTON */}
+            {/* RESULTS COUNT AND REFRESH */}
 
-            <button
-              type="button"
-              onClick={refreshHospitals}
-              disabled={loading}
-              aria-label="Refresh hospital results"
-              title="Refresh hospital results"
-              className="flex items-center gap-1 rounded-lg border border-[#dfd4bf] bg-white px-3 py-2 text-xs font-medium text-[#07545e] hover:bg-[#f5efe3] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <FiRefreshCw
-                className={
-                  loading ? 'animate-spin' : ''
-                }
-              />
+            <div className="flex flex-wrap items-center gap-3">
 
-              Refresh
-            </button>
+              <div
+                aria-live="polite"
+                className="rounded-full border border-[#dfd4bf] bg-white px-4 py-2 text-sm text-[#475569]"
+              >
 
-          </div>
+                {loading
+                  ? 'Searching...'
+                  : error
+                    ? 'Search unavailable'
+                    : (
+                      <>
+                        <span className="font-bold text-[#07545e]">
+                          {filteredHospitals.length}
+                        </span>
+                        {' '}
+                        {filteredHospitals.length === 1
+                          ? 'hospital found'
+                          : 'hospitals found'}
+                      </>
+                    )}
 
-        </div>
+              </div>
 
-        {/* ----------------------------------------
-            LOADING STATE
-        ---------------------------------------- */}
-
-        {loading ? (
-          <LoadingSpinner
-            text="Finding suitable hospitals..."
-          />
-        ) : error ? (
-
-          /* --------------------------------------
-              ERROR STATE
-          -------------------------------------- */
-
-          <div
-            role="alert"
-            className="rounded-xl border border-red-200 bg-white px-6 py-10 text-center"
-          >
-            <p className="mb-4 text-sm text-red-600">
-              {error}
-            </p>
-
-            <button
-              type="button"
-              onClick={refreshHospitals}
-              className="btn-primary btn-sm"
-            >
-              Try Again
-            </button>
-          </div>
-
-        ) : hospitals.length === 0 ? (
-
-          /* --------------------------------------
-              EMPTY STATE
-          -------------------------------------- */
-
-          <EmptyState
-            icon="🏥"
-            title={
-              currentPage > 1
-                ? 'No hospitals on this page'
-                : 'No hospitals found'
-            }
-            description={
-              currentPage > 1
-                ? 'Try returning to the previous page.'
-                : serviceQ || districtQ
-                  ? 'No hospitals match your search. Try a different service or district.'
-                  : 'No hospitals are currently listed.'
-            }
-            action={
               <button
                 type="button"
-                onClick={
-                  currentPage > 1
-                    ? () =>
-                        goToPage(currentPage - 1)
-                    : clearAllFilters
-                }
-                className="btn-secondary btn-sm"
+                onClick={refreshHospitals}
+                disabled={loading}
+                title="Refresh hospital results"
+                aria-label="Refresh hospital results"
+                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#dfd4bf] bg-white text-[#07545e] shadow-sm transition hover:bg-[#f5efe3] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {currentPage > 1
-                  ? 'Previous Page'
-                  : 'Clear Search'}
+
+                <FiRefreshCw
+                  className={
+                    loading ? 'animate-spin' : ''
+                  }
+                />
+
               </button>
-            }
-          />
 
-        ) : (
-          <>
+            </div>
 
-            {/* ------------------------------------
-                HOSPITAL CARDS
-            ------------------------------------ */}
+          </div>
 
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {/* LOADING STATE */}
 
-              {hospitals.map((hospital) => {
-                const avail =
-                  getRelevantAvailability(
-                    hospital,
-                    serviceQ,
-                  );
+          {loading ? (
 
-                const hasStale = avail.some(
-                  (availability) =>
-                    availability.freshness_label ===
-                    'stale',
-                );
+            <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-[#dfd4bf] bg-white">
 
-                const bedInfo =
-                  getBedInformation(hospital);
+              <div className="text-center">
 
-                const latestUpdate =
-                  getLatestUpdate(hospital);
+                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-[#e1ece7] border-t-[#07545e]" />
 
-                const phone =
-                  formatPhone(hospital.phone);
+                <p className="mt-4 text-sm text-[#64748b]">
+                  Finding hospitals...
+                </p>
 
-                return (
+              </div>
+
+            </div>
+
+          ) : error ? (
+
+            /* ERROR STATE */
+
+            <div className="rounded-2xl border border-red-200 bg-white px-6 py-12 text-center">
+
+              <p className="text-sm text-red-600">
+                {error}
+              </p>
+
+              <button
+                type="button"
+                onClick={refreshHospitals}
+                className="mt-5 rounded-xl bg-[#07545e] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#043f47]"
+              >
+                Try Again
+              </button>
+
+            </div>
+
+          ) : filteredHospitals.length === 0 ? (
+
+            /* EMPTY STATE */
+
+            <div className="rounded-2xl border border-[#dfd4bf] bg-white px-6 py-14 text-center">
+
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-[#e5f0ed] text-3xl text-[#07545e]">
+
+                <GiHeartPlus />
+
+              </div>
+
+              <h3 className="mt-5 text-lg font-bold text-[#13295b]">
+                No hospitals found
+              </h3>
+
+              <p className="mt-2 text-sm text-[#64748b]">
+                Try another hospital name or district.
+              </p>
+
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="mt-5 rounded-xl bg-[#07545e] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#043f47]"
+              >
+                Clear Search
+              </button>
+
+            </div>
+
+          ) : (
+
+            /* HOSPITAL CARDS */
+
+            <>
+
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+
+                {paginatedHospitals.map((hospital) => (
+
                   <article
                     key={hospital.id}
-                    className="overflow-hidden rounded-[20px] border border-[#dfd4bf] bg-white shadow-[0_7px_24px_rgba(63,50,29,0.08)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_16px_35px_rgba(63,50,29,0.13)]"
+                    className="group flex h-full flex-col overflow-hidden rounded-[22px] border border-[#dfd4bf] bg-white shadow-[0_7px_24px_rgba(63,50,29,0.08)] transition-all duration-300 hover:-translate-y-1 hover:border-[#a8c9c1] hover:shadow-[0_16px_35px_rgba(63,50,29,0.13)]"
                   >
 
                     {/* CARD HEADER */}
 
-                    <div className="relative min-h-[105px] bg-gradient-to-r from-[#dae8df] via-[#f2eadb] to-[#b7d3d5] p-4">
+                    <div className="relative bg-gradient-to-r from-[#dae8df] via-[#f2eadb] to-[#b7d3d5] px-5 py-6">
 
-                      <div className="flex justify-end">
+                      <div className="mb-5 flex items-start justify-between gap-3">
 
-                        <span className="rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-semibold capitalize text-[#2563eb] shadow-sm">
+                        {/* HOSPITAL ICON */}
+
+                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/70 bg-white/90 text-2xl text-[#07545e] shadow-sm">
+
+                          <GiHeartPlus />
+
+                        </div>
+
+                        {/* HOSPITAL TYPE */}
+
+                        <span className="rounded-full border border-[#bfd9d2] bg-white/90 px-3 py-1 text-xs font-semibold capitalize text-[#07545e] shadow-sm">
+
                           {hospital.type_display ||
                             hospital.type ||
                             'Hospital'}
+
                         </span>
 
                       </div>
 
-                      <h3 className="mt-4 truncate text-lg font-bold text-[#172554]">
+                      {/* HOSPITAL NAME */}
+
+                      <h3 className="text-lg font-bold text-[#13295b] transition-colors group-hover:text-[#07545e]">
+
                         {hospital.name ||
                           'Unnamed Hospital'}
+
                       </h3>
 
-                      <div className="mt-1 flex items-center gap-1 text-xs text-[#5c6470]">
+                      {/* HOSPITAL LOCATION */}
 
-                        <FiMapPin
-                          aria-hidden="true"
-                        />
+                      <p className="mt-2 flex items-center gap-2 text-sm text-[#475569]">
 
-                        <span className="truncate">
+                        <FiMapPin className="flex-shrink-0 text-[#07545e]" />
+
+                        <span>
+
+                          {hospital.municipality
+                            ? `${hospital.municipality}, `
+                            : ''}
+
                           {hospital.district ||
                             'District not reported'}
 
-                          {hospital.municipality
-                            ? `, ${hospital.municipality}`
-                            : ''}
                         </span>
 
-                        {typeof hospital.distance_km ===
-                          'number' &&
-                          Number.isFinite(
-                            hospital.distance_km,
-                          ) && (
-                            <span className="ml-auto flex-shrink-0 font-semibold text-[#07545e]">
-                              {hospital.distance_km.toFixed(
-                                1,
-                              )}{' '}
-                              km
-                            </span>
-                          )}
-
-                      </div>
+                      </p>
 
                     </div>
 
                     {/* CARD BODY */}
 
-                    <div className="p-4">
+                    <div className="flex flex-1 flex-col p-5">
 
-                      {/* SERVICES */}
+                      {/* HOSPITAL INFORMATION */}
 
-                      {Array.isArray(
-                        hospital.services,
-                      ) &&
-                        hospital.services.length >
-                          0 && (
-                          <div className="mb-3 flex flex-wrap gap-1.5">
+                      <div className="flex items-start gap-3 rounded-xl border border-[#e7ddc8] bg-[#fcfaf6] p-4">
 
-                            {hospital.services
-                              .slice(0, 4)
-                              .map((service) => (
-                                <span
-                                  key={service.id}
-                                  className="rounded-full bg-[#f5efe3] px-2.5 py-1 text-[10px] font-medium text-[#6a5a43]"
-                                >
-                                  {service.service_name}
-                                </span>
-                              ))}
+                        <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-[#e5f0ed] text-[#07545e]">
 
-                            {hospital.services.length >
-                              4 && (
-                                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] text-gray-500">
-                                  +
-                                  {hospital.services.length -
-                                    4}{' '}
-                                  more
-                                </span>
-                              )}
-
-                          </div>
-                        )}
-
-                      {/* AVAILABILITY */}
-
-                      {avail.length > 0 ? (
-                        <div className="mb-4 space-y-2">
-
-                          {avail.map(
-                            (availability) => (
-                              <div
-                                key={availability.id}
-                                className="rounded-xl border border-[#eee4d4] bg-[#fcfaf6] p-3"
-                              >
-
-                                <div className="flex items-center justify-between gap-2">
-
-                                  <span className="text-xs font-medium capitalize text-[#475569]">
-                                    {availability.availability_type_display ||
-                                      safeText(
-                                        availability.availability_type,
-                                      ).replace(
-                                        /_/g,
-                                        ' ',
-                                      )}
-                                  </span>
-
-                                  <StatusBadge
-                                    status={
-                                      availability.status
-                                    }
-                                    size="sm"
-                                  />
-
-                                </div>
-
-                                <div className="mt-2 flex items-center justify-between gap-2">
-
-                                  {availability.available_count !=
-                                    null && (
-                                    <span className="text-[10px] text-[#64748b]">
-                                      {availability.available_count}{' '}
-                                      available
-                                    </span>
-                                  )}
-
-                                  <FreshnessTag
-                                    label={
-                                      availability.freshness_label
-                                    }
-                                  />
-
-                                </div>
-
-                              </div>
-                            ),
+                          {authenticated ? (
+                            <FiCheckCircle />
+                          ) : (
+                            <FiLock />
                           )}
 
                         </div>
-                      ) : (
 
-                        <div className="mb-4 rounded-xl border border-[#eee4d4] bg-[#fcfaf6] p-3">
+                        <div>
 
-                          <p className="text-xs font-semibold text-[#475569]">
-                            {serviceQ
-                              ? 'Matching availability not reported'
-                              : 'Availability not reported'}
+                          <p className="text-sm font-semibold text-[#30474a]">
+                            Hospital Information
                           </p>
 
-                          <p className="mt-1 text-[10px] text-[#94a3b8]">
-                            Contact the hospital to confirm
-                            current availability.
+                          <p className="mt-1 text-xs leading-5 text-[#64748b]">
+
+                            {authenticated
+                              ? 'View hospital services, availability, doctors, and contact information.'
+                              : 'Sign in to view hospital services, availability, doctors, and contact information.'}
+
                           </p>
 
                         </div>
 
-                      )}
+                      </div>
 
-                      {/* BED INFORMATION */}
+                      {/* VIEW DETAILS BUTTON */}
 
-                      {bedInfo && (
-                        <div className="mb-3 text-xs font-medium text-[#475569]">
-
-                          🛏 {bedInfo.label} available:{' '}
-
-                          <strong
-                            className={
-                              bedInfo.count === 0
-                                ? 'text-red-600'
-                                : bedInfo.count < 5
-                                  ? 'text-amber-600'
-                                  : 'text-emerald-700'
-                            }
-                          >
-                            {bedInfo.count}
-                          </strong>
-
-                        </div>
-                      )}
-
-                      {/* LAST UPDATED */}
-
-                      {latestUpdate && (
-                        <div className="mb-3 flex items-center gap-1 text-xs text-[#94a3b8]">
-
-                          <FiClock />
-
-                          Updated {latestUpdate}
-
-                        </div>
-                      )}
-
-                      {/* STALE WARNING */}
-
-                      {hasStale && (
-                        <div className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[10px] text-amber-700">
-                          ⚠ Some availability information
-                          may be outdated. Contact the
-                          hospital to confirm.
-                        </div>
-                      )}
-
-                      {/* CARD FOOTER */}
-
-                      <div className="flex items-center justify-between gap-3 border-t border-[#eee4d4] pt-3">
-
-                        {phone ? (
-                          <a
-                            href={`tel:${phone}`}
-                            className="flex items-center gap-1 text-xs font-medium text-[#07545e] hover:underline"
-                          >
-                            <FiPhone />
-
-                            {hospital.phone}
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-400">
-                            Contact unavailable
-                          </span>
-                        )}
+                      <div className="mt-auto pt-5">
 
                         <Link
-                          to={`/hospital/${hospital.id}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-[#07545e] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#043f47]"
+                          to={
+                            authenticated
+                              ? `/hospital/${hospital.id}`
+                              : '/login'
+                          }
+                          state={
+                            authenticated
+                              ? undefined
+                              : {
+                                  from: {
+                                    pathname: `/hospital/${hospital.id}`,
+                                  },
+                                }
+                          }
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#d8b970]/40 bg-[#07545e] px-4 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-[#043f47] hover:shadow-md"
                         >
-                          View Details
 
-                          <FiChevronRight />
+                          {authenticated ? (
+
+                            <>
+                              View Hospital Details
+                              <FiArrowRight />
+                            </>
+
+                          ) : (
+
+                            <>
+                              <FiLock />
+                              Sign in to View Details
+                              <FiArrowRight />
+                            </>
+
+                          )}
+
                         </Link>
 
                       </div>
@@ -1464,76 +846,72 @@ export const SearchPage: React.FC = () => {
                     </div>
 
                   </article>
-                );
-              })}
 
-            </div>
-
-            {/* ------------------------------------
-                PAGINATION
-            ------------------------------------ */}
-
-            {(currentPage > 1 ||
-              hasNextPage) && (
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    goToPage(currentPage - 1)
-                  }
-                  disabled={
-                    currentPage <= 1 ||
-                    loading
-                  }
-                  className="btn-secondary btn-sm flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <FiChevronLeft />
-
-                  Previous
-                </button>
-
-                <span className="text-sm text-gray-600">
-                  Page {currentPage}
-
-                  {total !== null &&
-                    ` of ${totalPages}`}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    goToPage(currentPage + 1)
-                  }
-                  disabled={
-                    !hasNextPage ||
-                    loading
-                  }
-                  className="btn-secondary btn-sm flex items-center gap-1 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Next
-
-                  <FiChevronRight />
-                </button>
+                ))}
 
               </div>
-            )}
 
-            {/* ------------------------------------
-                DISCLAIMER
-            ------------------------------------ */}
+              {/* PAGINATION */}
 
-            <div className="mt-6 rounded-xl border border-[#dfbf75] bg-[#fff6de] px-4 py-3 text-center text-xs text-[#996a00]">
-              ⚠ Availability information is
-              hospital-reported and may change.
-              Please confirm with the receiving
-              hospital before patient transfer.
-            </div>
+              {totalPages > 1 && (
 
-          </>
-        )}
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+
+                  <button
+                    type="button"
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page === 1}
+                    className="flex items-center gap-2 rounded-xl border border-[#dfd4bf] bg-white px-4 py-2.5 text-sm font-medium text-[#07545e] transition hover:bg-[#f5efe3] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+
+                    <FiChevronLeft />
+
+                    Previous
+
+                  </button>
+
+                  <span className="text-sm font-medium text-[#475569]">
+                    Page {page} of {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => goToPage(page + 1)}
+                    disabled={page === totalPages}
+                    className="flex items-center gap-2 rounded-xl border border-[#dfd4bf] bg-white px-4 py-2.5 text-sm font-medium text-[#07545e] transition hover:bg-[#f5efe3] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+
+                    Next
+
+                    <FiChevronRight />
+
+                  </button>
+
+                </div>
+
+              )}
+
+              {/* DISCLAIMER */}
+
+              <div className="mt-8 rounded-xl border border-[#dfbf75] bg-[#fff6de] px-5 py-4 text-center text-xs leading-6 text-[#996a00]">
+
+                <FiShield className="mr-1 inline-block" />
+
+                Hospital information and service availability
+                are provided by healthcare facilities and
+                may change. Please confirm availability
+                before visiting or arranging a patient transfer.
+
+              </div>
+
+            </>
+
+          )}
+
+        </section>
 
       </div>
+
     </div>
   );
 };

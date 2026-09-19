@@ -123,12 +123,11 @@ export const LoginPage: React.FC = () => {
         <p className="mt-5 text-center text-sm text-[#718096]">
           Don&apos;t have an account?{' '}
           <Link to="/register" className="font-semibold text-[#07545e] hover:underline">
-            Create one free
+            Create account
           </Link>
         </p>
-        <p className="mt-3 text-center text-xs leading-5 text-[#94a3b8]">
-          Hospital staff and admins can use the same login.
-        </p>
+
+
       </div>
     </div>
   );
