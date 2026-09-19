@@ -7,20 +7,8 @@ import React, {
 } from 'react';
 
 import {
-  FiPlus,
-  FiX,
-  FiEdit2,
-  FiToggleLeft,
-  FiToggleRight,
-  FiSearch,
-  FiRefreshCw,
-  FiUser,
-  FiMail,
-  FiPhone,
-  FiLock,
-  FiEye,
-  FiEyeOff,
-  FiAlertCircle,
+  FiPlus, FiX, FiEdit2, FiSearch, FiRefreshCw,
+  FiUser, FiMail, FiPhone, FiLock, FiEye, FiEyeOff, FiUsers,
 } from 'react-icons/fi';
 
 import toast from 'react-hot-toast';
@@ -257,43 +245,54 @@ const fetchAllPages = async <T,>(
       );
     }
 
-    // Prevent infinite loops if the backend
-    // repeatedly returns the same page.
+// ─── Shared field chrome ────────────────────────────────────────────────────
 
-    const pageSignature = JSON.stringify(pageItems);
+const inputClass =
+  'w-full rounded-lg border border-[#e5dcc8] bg-white pl-9 pr-3 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c] transition-colors disabled:bg-[#faf6ee] disabled:text-[#a3988a]';
 
-    if (
-      pageItems.length > 0 &&
-      seenPages.has(pageSignature)
-    ) {
-      throw new Error(
-        'The API returned a repeated page. Check backend pagination.',
-      );
-    }
+const IconField: React.FC<{ icon: React.ReactNode; children: React.ReactElement }> = ({ icon, children }) => (
+  <div className="relative">
+    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aabfb9]">{icon}</span>
+    {children}
+  </div>
+);
 
-    if (pageItems.length > 0) {
-      seenPages.add(pageSignature);
-    }
+const Label: React.FC<{ text: string; required?: boolean; hint?: string }> = ({ text, required, hint }) => (
+  <label className="block text-sm font-medium text-[#1c3d3f] mb-1.5">
+    {text} {required && <span className="text-[#a15b4a]">*</span>}
+    {hint && <span className="text-[#a3988a] font-normal text-xs ml-1">{hint}</span>}
+  </label>
+);
 
-    allItems.push(...pageItems);
+const StatusSwitch: React.FC<{ active: boolean; disabled: boolean; onClick: () => void }> = ({ active, disabled, onClick }) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    aria-pressed={active}
+    aria-label={active ? 'Deactivate user' : 'Activate user'}
+    className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors duration-150 disabled:opacity-50 ${
+      active ? 'bg-[#216d73]' : 'bg-[#d8ded9]'
+    }`}
+  >
+    <span
+      className={`inline-block h-[18px] w-[18px] transform rounded-full bg-white shadow-sm transition-transform duration-150 ${
+        active ? 'translate-x-[22px]' : 'translate-x-[3px]'
+      }`}
+    />
+  </button>
+);
 
-    if (pageItems.length === 0 && nextPage) {
-      throw new Error(
-        'The API returned an empty page while indicating more results.',
-      );
-    }
+const RoleBadge: React.FC<{ role: string }> = ({ role }) => (
+  <span
+    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+      role === 'hospital_admin' ? 'bg-[#eef3f2] text-[#216d73]' : 'bg-[#f2ece0] text-[#8a7350]'
+    }`}
+  >
+    {role === 'hospital_admin' ? 'Admin' : 'Staff'}
+  </span>
+);
 
-    hasNextPage = nextPage;
-
-    page += 1;
-  }
-
-  return allItems;
-};
-
-// ==================================================
-// MAIN COMPONENT
-// ==================================================
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export const HospitalAdminManagement: React.FC = () => {
 
@@ -1013,22 +1012,13 @@ export const HospitalAdminManagement: React.FC = () => {
   // ==================================================
 
   return (
-    <div>
-
-      {/* ==========================================
-          PAGE HEADER
-      ========================================== */}
-
-      <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-
+    <div className="bg-[#faedd7] -m-4 md:-m-6 p-4 md:p-6 min-h-full">
+      {/* ── Page header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="page-title m-0">
-            Hospital Admin Management
-          </h1>
-
-          <p className="mt-1 text-sm text-gray-500">
-            Create and manage hospital administrators
-            and staff accounts.
+          <h1 className="text-2xl font-semibold text-[#1c3d3f] m-0">Hospital Admin Management</h1>
+          <p className="text-sm text-[#6b7d79] mt-1">
+            Create and manage hospital administrators and staff accounts
           </p>
         </div>
 
@@ -1037,14 +1027,8 @@ export const HospitalAdminManagement: React.FC = () => {
           {/* REFRESH */}
 
           <button
-            type="button"
-            onClick={() => void loadData()}
-            disabled={
-              loading ||
-              saving ||
-              toggling !== null
-            }
-            className="rounded-lg p-2 text-gray-500 transition-colors hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={loadData}
+            className="p-2.5 text-[#538b8c] hover:text-[#216d73] bg-white border border-[#e5dcc8] hover:border-[#aabfb9] rounded-lg transition-colors"
             title="Refresh"
             aria-label="Refresh user list"
           >
@@ -1054,23 +1038,11 @@ export const HospitalAdminManagement: React.FC = () => {
               }
             />
           </button>
-
-          {/* CREATE ADMIN */}
-
           <button
-            type="button"
             onClick={openCreate}
-            disabled={
-              loading ||
-              saving ||
-              toggling !== null ||
-              hospitals.length === 0
-            }
-            className="btn-primary flex items-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center gap-2 bg-[#216d73] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#184f54] transition-colors shadow-sm"
           >
-            <FiPlus />
-
-            Create Admin
+            <FiPlus /> Create Admin
           </button>
 
         </div>
@@ -1112,16 +1084,11 @@ export const HospitalAdminManagement: React.FC = () => {
         {/* SEARCH */}
 
         <div className="relative flex-1">
-
-          <FiSearch
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            aria-hidden="true"
-          />
-
+          <FiSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#aabfb9]" />
           <input
-            type="search"
-            className="input w-full pl-9"
-            placeholder="Search by name, username, email or hospital..."
+            type="text"
+            className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-[#e5dcc8] bg-white text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
+            placeholder="Search by name, username or email…"
             value={search}
             onChange={(event) =>
               setSearch(event.target.value)
@@ -1134,7 +1101,7 @@ export const HospitalAdminManagement: React.FC = () => {
         {/* ROLE FILTER */}
 
         <select
-          className="input w-full sm:w-44"
+          className="w-full sm:w-44 rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
           value={roleFilter}
           onChange={(event) => {
             const value = event.target.value;
@@ -1176,179 +1143,61 @@ export const HospitalAdminManagement: React.FC = () => {
           Unable to display users.
         </div>
       ) : (
-
-        /* ========================================
-            USERS TABLE
-        ======================================== */
-
-        <div className="card p-0">
-
-          <div className="table-container">
-
-            <table className="table">
-
-              <thead>
-                <tr>
-                  <th>User</th>
-
-                  <th className="hidden sm:table-cell">
-                    Name
-                  </th>
-
-                  <th>Role</th>
-
-                  <th className="hidden md:table-cell">
-                    Hospital
-                  </th>
-
-                  <th className="hidden lg:table-cell">
-                    Phone
-                  </th>
-
-                  <th>Status</th>
-
-                  <th>Actions</th>
-                </tr>
-              </thead>
-
-              <tbody>
-
-                {filteredUsers.length === 0 ? (
-
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="py-10 text-center text-gray-400"
-                    >
-                      {search.trim() ||
-                      roleFilter !== 'all'
-                        ? 'No users match your filters.'
-                        : 'No hospital administrators or staff accounts found.'}
-                    </td>
+        <div className="bg-white border border-[#e5dcc8] rounded-xl overflow-hidden">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 text-center px-4">
+              <div className="w-12 h-12 rounded-full bg-[#eef3f2] flex items-center justify-center mb-3">
+                <FiUsers className="text-xl text-[#538b8c]" />
+              </div>
+              <p className="text-sm font-medium text-[#1c3d3f]">
+                {search || roleFilter !== 'all' ? 'No users match your filters' : 'No hospital admins yet'}
+              </p>
+              <p className="text-xs text-[#8a8078] mt-1">
+                {search || roleFilter !== 'all' ? 'Try a different search or filter.' : 'Click "Create Admin" to add one.'}
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#e5dcc8] bg-[#faf6ee]">
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3">User</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3 hidden sm:table-cell">Name</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3">Role</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3 hidden md:table-cell">Hospital</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3 hidden lg:table-cell">Phone</th>
+                    <th className="text-left font-medium text-[#6b7d79] px-4 py-3">Status</th>
+                    <th className="text-right font-medium text-[#6b7d79] px-4 py-3">Actions</th>
                   </tr>
-
-                ) : (
-
-                  filteredUsers.map((user) => (
-
-                    <tr key={user.id}>
-
-                      {/* USER */}
-
-                      <td>
-                        <div className="flex items-center gap-2">
-
-                          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary-100 text-sm font-semibold text-primary-700">
-                            {safeText(
-                              user.username,
-                            )
-                              .charAt(0)
-                              .toUpperCase() || '?'}
+                </thead>
+                <tbody className="divide-y divide-[#f2ece0]">
+                  {filtered.map((u) => (
+                    <tr key={u.id} className="hover:bg-[#faedd7]/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#216d73] text-white flex items-center justify-center font-semibold text-sm flex-shrink-0">
+                            {u.username.charAt(0).toUpperCase()}
                           </div>
-
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {user.username ||
-                                'Unknown user'}
-                            </div>
-
-                            <div className="text-xs text-gray-500">
-                              {user.email || '—'}
-                            </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-[#1c3d3f] truncate">{u.username}</div>
+                            <div className="text-xs text-[#8a8078] truncate">{u.email}</div>
                           </div>
 
                         </div>
                       </td>
-
-                      {/* FULL NAME */}
-
-                      <td className="hidden text-gray-700 sm:table-cell">
-                        {[
-                          user.first_name,
-                          user.last_name,
-                        ]
-                          .filter(Boolean)
-                          .join(' ') || '—'}
+                      <td className="px-4 py-3 text-[#6b7d79] hidden sm:table-cell">
+                        {[u.first_name, u.last_name].filter(Boolean).join(' ') || '—'}
                       </td>
-
-                      {/* ROLE */}
-
-                      <td>
-                        <span
-                          className={`badge ${
-                            user.role === 'hospital_admin'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-teal-100 text-teal-700'
-                          }`}
-                        >
-                          {user.role === 'hospital_admin'
-                            ? 'Admin'
-                            : 'Staff'}
-                        </span>
+                      <td className="px-4 py-3"><RoleBadge role={u.role} /></td>
+                      <td className="px-4 py-3 text-[#6b7d79] hidden md:table-cell">{hospitalName(u.hospital)}</td>
+                      <td className="px-4 py-3 text-[#6b7d79] hidden lg:table-cell">{u.phone || '—'}</td>
+                      <td className="px-4 py-3">
+                        <StatusSwitch active={u.is_active} disabled={toggling === u.id} onClick={() => handleToggle(u)} />
                       </td>
-
-                      {/* HOSPITAL */}
-
-                      <td className="hidden text-sm text-gray-600 md:table-cell">
-                        {hospitalName(
-                          user.hospital,
-                        )}
-                      </td>
-
-                      {/* PHONE */}
-
-                      <td className="hidden text-sm text-gray-500 lg:table-cell">
-                        {user.phone || '—'}
-                      </td>
-
-                      {/* ACCOUNT STATUS */}
-
-                      <td>
+                      <td className="px-4 py-3 text-right">
                         <button
-                          type="button"
-                          onClick={() =>
-                            void handleToggle(user)
-                          }
-                          disabled={
-                            toggling !== null ||
-                            saving ||
-                            loading
-                          }
-                          title={
-                            user.is_active
-                              ? 'Click to deactivate'
-                              : 'Click to activate'
-                          }
-                          aria-label={`${
-                            user.is_active
-                              ? 'Deactivate'
-                              : 'Activate'
-                          } ${user.username}`}
-                          className="rounded p-1 transition-opacity disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          {toggling === user.id ? (
-                            <FiRefreshCw className="animate-spin text-xl text-gray-400" />
-                          ) : user.is_active ? (
-                            <FiToggleRight className="text-2xl text-green-500" />
-                          ) : (
-                            <FiToggleLeft className="text-2xl text-gray-400" />
-                          )}
-                        </button>
-                      </td>
-
-                      {/* EDIT */}
-
-                      <td>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            openEdit(user)
-                          }
-                          disabled={
-                            saving ||
-                            toggling !== null
-                          }
-                          className="rounded p-1.5 text-gray-500 transition-colors hover:bg-primary-50 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+                          onClick={() => openEdit(u)}
+                          className="p-2 text-[#538b8c] hover:text-[#216d73] hover:bg-[#eef3f2] rounded-lg transition-colors"
                           title="Edit user"
                           aria-label={`Edit ${user.username}`}
                         >
@@ -1357,22 +1206,13 @@ export const HospitalAdminManagement: React.FC = () => {
                       </td>
 
                     </tr>
-
-                  ))
-
-                )}
-
-              </tbody>
-
-            </table>
-
-          </div>
-
-          {/* TABLE FOOTER */}
-
-          <div className="border-t border-gray-100 px-4 py-2 text-xs text-gray-400">
-            {filteredUsers.length} of {users.length}{' '}
-            users
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="px-4 py-2.5 border-t border-[#f2ece0] text-xs text-[#8a8078]">
+            {filtered.length} of {users.length} users
           </div>
 
         </div>
@@ -1393,38 +1233,23 @@ export const HospitalAdminManagement: React.FC = () => {
           {/* BACKDROP */}
 
           <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-[#1c3d3f]/50 backdrop-blur-sm"
             onClick={closeModal}
           />
 
-          {/* MODAL PANEL */}
-
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="hospital-admin-modal-title"
-            className="relative z-10 w-full max-w-xl rounded-2xl bg-white shadow-2xl"
-          >
-
-            {/* MODAL HEADER */}
-
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-
-              <h2
-                id="hospital-admin-modal-title"
-                className="text-lg font-semibold text-gray-900"
-              >
-                {modalMode === 'create'
-                  ? 'Create Hospital Admin / Staff'
-                  : 'Edit User'}
+          {/* Panel */}
+          <div className="relative z-10 w-full max-w-xl bg-white rounded-2xl shadow-2xl">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#f2ece0]">
+              <h2 className="text-lg font-semibold text-[#1c3d3f]">
+                {modalMode === 'create' ? 'Create Hospital Admin / Staff' : 'Edit User'}
               </h2>
 
               <button
                 type="button"
                 onClick={closeModal}
-                disabled={saving}
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="Close modal"
+                className="p-2 text-[#8a8078] hover:text-[#1c3d3f] hover:bg-[#faf6ee] rounded-lg transition-colors"
+                aria-label="Close"
               >
                 <FiX />
               </button>
@@ -1441,32 +1266,12 @@ export const HospitalAdminManagement: React.FC = () => {
               }
               className="max-h-[75vh] space-y-4 overflow-y-auto px-6 py-5"
             >
-
-              {/* USERNAME */}
-
-              <div className="form-group mb-0">
-
-                <label
-                  htmlFor="admin-username"
-                  className="label"
-                >
-                  Username
-
-                  {modalMode === 'create' && (
-                    <span className="text-red-500">
-                      {' '}*
-                    </span>
-                  )}
-                </label>
-
-                <div className="relative">
-
-                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-
+              {/* Username — read-only when editing */}
+              <div>
+                <Label text="Username" required={modalMode === 'create'} />
+                <IconField icon={<FiUser />}>
                   <input
-                    id="admin-username"
-                    ref={usernameInputRef}
-                    className="input pl-9 disabled:bg-gray-50 disabled:text-gray-500"
+                    className={inputClass}
                     placeholder="e.g. bir_hospital_admin"
                     value={form.username}
                     onChange={(event) =>
@@ -1484,33 +1289,19 @@ export const HospitalAdminManagement: React.FC = () => {
                     }
                     autoComplete="username"
                   />
-
-                </div>
-
+                </IconField>
                 {modalMode === 'edit' && (
-                  <p className="mt-1 text-xs text-gray-400">
-                    Username cannot be changed.
-                  </p>
+                  <p className="text-xs text-[#a3988a] mt-1">Username cannot be changed.</p>
                 )}
 
               </div>
 
-              {/* FIRST NAME AND LAST NAME */}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-
-                <div className="form-group mb-0">
-
-                  <label
-                    htmlFor="admin-first-name"
-                    className="label"
-                  >
-                    First Name
-                  </label>
-
+              {/* Name row */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label text="First Name" />
                   <input
-                    id="admin-first-name"
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     placeholder="Sita"
                     value={form.first_name}
                     onChange={(event) =>
@@ -1524,19 +1315,10 @@ export const HospitalAdminManagement: React.FC = () => {
                   />
 
                 </div>
-
-                <div className="form-group mb-0">
-
-                  <label
-                    htmlFor="admin-last-name"
-                    className="label"
-                  >
-                    Last Name
-                  </label>
-
+                <div>
+                  <Label text="Last Name" />
                   <input
-                    id="admin-last-name"
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     placeholder="Rai"
                     value={form.last_name}
                     onChange={(event) =>
@@ -1553,25 +1335,14 @@ export const HospitalAdminManagement: React.FC = () => {
 
               </div>
 
-              {/* EMAIL */}
-
-              <div className="form-group mb-0">
-
-                <label
-                  htmlFor="admin-email"
-                  className="label"
-                >
-                  Email Address
-                </label>
-
-                <div className="relative">
-
-                  <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-
+              {/* Email */}
+              <div>
+                <Label text="Email Address" />
+                <IconField icon={<FiMail />}>
                   <input
                     id="admin-email"
                     type="email"
-                    className="input pl-9"
+                    className={inputClass}
                     placeholder="admin@hospital.np"
                     value={form.email}
                     onChange={(event) =>
@@ -1583,30 +1354,17 @@ export const HospitalAdminManagement: React.FC = () => {
                     disabled={saving}
                     autoComplete="email"
                   />
-
-                </div>
-
+                </IconField>
               </div>
 
-              {/* PHONE */}
-
-              <div className="form-group mb-0">
-
-                <label
-                  htmlFor="admin-phone"
-                  className="label"
-                >
-                  Phone
-                </label>
-
-                <div className="relative">
-
-                  <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-
+              {/* Phone */}
+              <div>
+                <Label text="Phone" />
+                <IconField icon={<FiPhone />}>
                   <input
                     id="admin-phone"
                     type="tel"
-                    className="input pl-9"
+                    className={inputClass}
                     placeholder="98XXXXXXXX"
                     value={form.phone}
                     onChange={(event) =>
@@ -1618,32 +1376,15 @@ export const HospitalAdminManagement: React.FC = () => {
                     disabled={saving}
                     autoComplete="tel"
                   />
-
-                </div>
-
+                </IconField>
               </div>
 
-              {/* ROLE AND HOSPITAL */}
-
-              <div className="grid gap-4 sm:grid-cols-2">
-
-                {/* ROLE */}
-
-                <div className="form-group mb-0">
-
-                  <label
-                    htmlFor="admin-role"
-                    className="label"
-                  >
-                    Role
-                    <span className="text-red-500">
-                      {' '}*
-                    </span>
-                  </label>
-
+              {/* Role & Hospital row */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <Label text="Role" required />
                   <select
-                    id="admin-role"
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     value={form.role}
                     onChange={(event) => {
                       const role =
@@ -1669,24 +1410,10 @@ export const HospitalAdminManagement: React.FC = () => {
                   </select>
 
                 </div>
-
-                {/* HOSPITAL */}
-
-                <div className="form-group mb-0">
-
-                  <label
-                    htmlFor="admin-hospital"
-                    className="label"
-                  >
-                    Hospital
-                    <span className="text-red-500">
-                      {' '}*
-                    </span>
-                  </label>
-
+                <div>
+                  <Label text="Hospital" required />
                   <select
-                    id="admin-hospital"
-                    className="input"
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white px-3.5 py-2.5 text-sm text-[#1c3d3f] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
                     value={form.hospital}
                     onChange={(event) =>
                       setField(
@@ -1729,45 +1456,19 @@ export const HospitalAdminManagement: React.FC = () => {
 
               </div>
 
-              {/* PASSWORD */}
-
-              <div className="form-group mb-0">
-
-                <label
-                  htmlFor="admin-password"
-                  className="label"
-                >
-                  Password
-
-                  {modalMode === 'create' ? (
-                    <span className="text-red-500">
-                      {' '}*
-                    </span>
-                  ) : (
-                    <span className="text-xs font-normal text-gray-400">
-                      {' '}(leave blank to keep current)
-                    </span>
-                  )}
-
-                </label>
-
+              {/* Password */}
+              <div>
+                <Label
+                  text="Password"
+                  required={modalMode === 'create'}
+                  hint={modalMode === 'edit' ? '(leave blank to keep current)' : undefined}
+                />
                 <div className="relative">
-
-                  <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#aabfb9]"><FiLock /></span>
                   <input
-                    id="admin-password"
-                    type={
-                      showPassword
-                        ? 'text'
-                        : 'password'
-                    }
-                    className="input pl-9 pr-10"
-                    placeholder={
-                      modalMode === 'create'
-                        ? 'Minimum 8 characters'
-                        : 'New password (optional)'
-                    }
+                    type={showPassword ? 'text' : 'password'}
+                    className="w-full rounded-lg border border-[#e5dcc8] bg-white pl-9 pr-10 py-2.5 text-sm text-[#1c3d3f] placeholder:text-[#a3988a] focus:outline-none focus:ring-2 focus:ring-[#538b8c]/40 focus:border-[#538b8c]"
+                    placeholder={modalMode === 'create' ? 'Min 8 characters' : 'New password (optional)'}
                     value={form.password}
                     onChange={(event) =>
                       setField(
@@ -1790,18 +1491,9 @@ export const HospitalAdminManagement: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      setShowPassword(
-                        (previous) => !previous,
-                      )
-                    }
-                    disabled={saving}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                    aria-label={
-                      showPassword
-                        ? 'Hide password'
-                        : 'Show password'
-                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aabfb9] hover:text-[#538b8c]"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? (
                       <FiEyeOff />
@@ -1814,14 +1506,11 @@ export const HospitalAdminManagement: React.FC = () => {
 
               </div>
 
-              {/* FORM ACTIONS */}
-
-              <div className="flex gap-3 border-t border-gray-100 pt-3">
-
-                {/* SUBMIT */}
-
+              {/* Actions */}
+              <div className="flex gap-3 pt-3 border-t border-[#f2ece0]">
                 <button
                   type="submit"
+                  className="flex-1 inline-flex items-center justify-center gap-2 bg-[#216d73] text-white text-sm font-medium px-4 py-2.5 rounded-lg hover:bg-[#184f54] disabled:opacity-60 transition-colors"
                   disabled={saving}
                   className="btn-primary flex flex-1 items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1845,6 +1534,7 @@ export const HospitalAdminManagement: React.FC = () => {
                 <button
                   type="button"
                   onClick={closeModal}
+                  className="px-4 py-2.5 rounded-lg text-sm font-medium text-[#1c3d3f] border border-[#e5dcc8] hover:bg-[#faf6ee] transition-colors"
                   disabled={saving}
                   className="btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -1864,5 +1554,3 @@ export const HospitalAdminManagement: React.FC = () => {
     </div>
   );
 };
-
-export default HospitalAdminManagement;
