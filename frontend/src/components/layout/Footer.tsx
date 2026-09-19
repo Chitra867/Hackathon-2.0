@@ -12,9 +12,7 @@ export const Footer: React.FC = () => (
           <span className="font-semibold text-gray-800">UpacharKhoj Nepal</span>
           © 2026 UpacharKhoj Nepal. Healthcare availability and referral coordination platform.
 
-        </div>
 
-      
 
 
       </div>

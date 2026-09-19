@@ -1,10 +1,5 @@
 import React, { useState } from 'react';
-import {
-  Link,
-  useLocation,
-  useNavigate,
-} from 'react-router-dom';
-
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiMenu,
   FiX,
@@ -13,7 +8,6 @@ import {
   FiUser,
   FiUserPlus,
 } from 'react-icons/fi';
-
 import { GiHeartPlus } from 'react-icons/gi';
 import toast from 'react-hot-toast';
 
@@ -31,8 +25,7 @@ export const Navbar: React.FC = () => {
     getDashboardPath,
   } = useAuthStore();
 
-  const { unreadCount } =
-    useNotificationStore();
+  const { unreadCount } = useNotificationStore();
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -45,9 +38,7 @@ export const Navbar: React.FC = () => {
   const handleLogout = async () => {
     await logout();
 
-    toast.success(
-      'Logged out successfully'
-    );
+    toast.success('Logged out successfully');
 
     navigate('/');
 
@@ -60,152 +51,69 @@ export const Navbar: React.FC = () => {
   ========================================================= */
 
   const navLinks = [
-    {
-      to: '/',
-      label: 'Find Hospital',
-    },
-    {
-      to: '/about',
-      label: 'About',
-    },
-
+    { to: '/search', label: 'Find Hospital' },
+    { to: '/about', label: 'About' },
     ...(isAuthenticated()
-      ? [
-        {
-          to: getDashboardPath(),
-          label: 'Dashboard',
-        },
-      ]
+      ? [{ to: getDashboardPath(), label: 'Dashboard' }]
       : []),
   ];
 
-
-  /* =========================================================
-     ACTIVE LINK
-  ========================================================= */
-
-  const isActive = (
-    path: string
-  ) => {
-    if (path === '/') {
-      return (
-        location.pathname === '/' ||
-        location.pathname === '/search'
-      );
+  const isActive = (path: string) => {
+    if (path === '/search') {
+      return location.pathname === '/search';
     }
 
-    return location.pathname.startsWith(
-      path
-    );
+    if (path === '/about') {
+      return location.pathname === '/about';
+    }
+
+    return location.pathname.startsWith(path);
   };
 
-
   return (
-    <header className="border-b border-gray-100 bg-white shadow-sm">
-
+    <header className="border-b border-[#e8dfcf] bg-[#fffdf9]">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="flex h-[72px] items-center justify-between">
 
-        <div className="flex h-16 items-center justify-between">
-
-
-          {/* =================================================
-              LOGO
-          ================================================= */}
-
+          {/* Logo */}
           <Link
             to="/"
-            className="
-              flex
-              flex-shrink-0
-              items-center
-              gap-2
-            "
+            className="group flex items-center gap-3"
           >
-            <GiHeartPlus
-              className="
-                text-2xl
-                text-primary-700
-              "
-            />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#07545e] shadow-sm transition-transform group-hover:scale-105">
+              <GiHeartPlus className="text-[22px] text-white" />
+            </div>
 
-            <div>
-              <span
-                className="
-                  block
-                  text-lg
-                  font-bold
-                  leading-tight
-                  text-primary-800
-                "
-              >
+            <div className="leading-tight">
+              <div className="text-lg font-bold tracking-[-0.02em] text-[#172554]">
                 UpacharKhoj
-              </span>
+              </div>
 
-              <span
-                className="
-                  hidden
-                  text-xs
-                  leading-tight
-                  text-gray-500
-                  sm:block
-                "
-              >
-                Nepal
-              </span>
+              <div className="text-[11px] font-medium tracking-[0.14em] text-[#9a7b3c]">
+                NEPAL
+              </div>
             </div>
           </Link>
 
-
-          {/* =================================================
-              DESKTOP NAVIGATION
-          ================================================= */}
-
-          <nav
-            className="
-              hidden
-              items-center
-              gap-8
-              md:flex
-            "
-          >
-            {navLinks.map(
-              (link) => (
-
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`
-                    text-sm
-                    font-medium
-                    transition-colors
-
-                    ${isActive(
-                    link.to
-                  )
-                      ? 'text-primary-700'
-                      : 'text-gray-600 hover:text-primary-700'
-                    }
-                  `}
-                >
-                  {link.label}
-                </Link>
-
-              )
-            )}
+          {/* Desktop Navigation */}
+          <nav className="hidden items-center rounded-full border border-[#ebe3d5] bg-[#f8f4eb] p-1.5 md:flex">
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`rounded-full px-6 py-2.5 text-sm font-medium transition-all ${
+                  isActive(link.to)
+                    ? 'bg-white text-[#07545e] shadow-sm'
+                    : 'text-[#59636d] hover:bg-white/80 hover:text-[#07545e]'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
-
-          {/* =================================================
-              RIGHT SIDE
-          ================================================= */}
-
-          <div
-            className="
-              flex
-              items-center
-              gap-2
-            "
-          >
+          {/* Right Side */}
+          <div className="flex items-center gap-2">
 
             {isAuthenticated() ? (
 
@@ -215,153 +123,47 @@ export const Navbar: React.FC = () => {
 
                 <button
                   type="button"
-                  className="
-                    relative
-                    rounded-lg
-                    p-2
-                    text-gray-500
-                    transition-colors
-                    hover:bg-primary-50
-                    hover:text-primary-700
-                  "
+                  className="relative flex h-10 w-10 items-center justify-center rounded-full text-[#64748b] transition hover:bg-[#edf5f3] hover:text-[#07545e]"
                   aria-label="Notifications"
                 >
-                  <FiBell />
+                  <FiBell className="text-lg" />
 
                   {unreadCount() > 0 && (
-
-                    <span
-                      className="
-                        absolute
-                        right-1
-                        top-1
-                        flex
-                        h-4
-                        w-4
-                        items-center
-                        justify-center
-                        rounded-full
-                        bg-red-500
-                        text-[10px]
-                        text-white
-                      "
-                    >
-                      {unreadCount() > 9
-                        ? '9+'
-                        : unreadCount()}
+                    <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                      {unreadCount() > 9 ? '9+' : unreadCount()}
                     </span>
 
                   )}
                 </button>
 
-
-                {/* USER INFORMATION */}
-
-                <div
-                  className="
-                    hidden
-                    items-center
-                    gap-2
-                    md:flex
-                  "
-                >
-
+                {/* User */}
+                <div className="hidden items-center gap-2 md:flex">
                   <Link
-                    to={
-                      getDashboardPath()
-                    }
-                    className="
-                      flex
-                      items-center
-                      gap-2
-                      rounded-lg
-                      px-3
-                      py-1.5
-                      text-sm
-                      text-gray-700
-                      transition-colors
-                      hover:bg-gray-100
-                    "
+                    to={getDashboardPath()}
+                    className="flex items-center gap-2 rounded-full border border-[#e8dfcf] bg-white px-3 py-2 transition hover:border-[#b9d1cc] hover:bg-[#f7fbfa]"
                   >
-
-                    <div
-                      className="
-                        flex
-                        h-7
-                        w-7
-                        items-center
-                        justify-center
-                        rounded-full
-                        bg-primary-100
-                        text-xs
-                        font-semibold
-                        text-primary-700
-                      "
-                    >
-                      {user?.username
-                        ?.charAt(0)
-                        .toUpperCase()}
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#dceeea] text-xs font-bold text-[#07545e]">
+                      {user?.username?.charAt(0).toUpperCase()}
                     </div>
 
-
-                    <div
-                      className="
-                        hidden
-                        text-left
-                        lg:block
-                      "
-                    >
-
-                      <div
-                        className="
-                          max-w-[120px]
-                          truncate
-                          text-sm
-                          font-medium
-                          leading-tight
-                          text-gray-800
-                        "
-                      >
-                        {user?.first_name ||
-                          user?.username}
+                    <div className="hidden text-left lg:block">
+                      <div className="max-w-[120px] truncate text-sm font-semibold text-[#25324a]">
+                        {user?.first_name || user?.username}
                       </div>
 
-
-                      <div
-                        className="
-                          text-xs
-                          capitalize
-                          leading-tight
-                          text-gray-400
-                        "
-                      >
+                      <div className="text-[10px] capitalize text-[#94a3b8]">
                         {user?.role_display ||
-                          user?.role?.replace(
-                            /_/g,
-                            ' '
-                          )}
+                          user?.role?.replace(/_/g, ' ')}
                       </div>
 
                     </div>
 
                   </Link>
 
-
-                  {/* Logout */}
-
                   <button
                     type="button"
-                    onClick={
-                      handleLogout
-                    }
-                    className="
-                      rounded-lg
-                      p-2
-                      text-gray-500
-                      transition-colors
-                      hover:bg-red-50
-                      hover:text-red-600
-                    "
+                    onClick={handleLogout}
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-[#64748b] transition hover:bg-red-50 hover:text-red-600"
                     aria-label="Sign out"
                     title="Sign out"
                   >
@@ -373,61 +175,21 @@ export const Navbar: React.FC = () => {
               </>
 
             ) : (
-
-              /* LOGIN + SIGN UP */
-
-              <div
-                className="
-                  hidden
-                  items-center
-                  gap-2
-                  md:flex
-                "
-              >
-
+              /* Login + Signup */
+              <div className="hidden items-center gap-2 md:flex">
                 <Link
                   to="/login"
-                  className="
-                    flex
-                    items-center
-                    gap-1.5
-                    rounded-lg
-                    border
-                    border-gray-300
-                    px-4
-                    py-2
-                    text-sm
-                    font-medium
-                    text-gray-700
-                    transition-colors
-                    hover:bg-gray-50
-                  "
+                  className="flex items-center gap-2 rounded-full border border-[#ddd6c9] bg-white px-5 py-2.5 text-sm font-semibold text-[#334155] transition hover:border-[#b8c9c6] hover:bg-[#fafcfb]"
                 >
                   <FiUser />
-
                   Login
                 </Link>
 
-
                 <Link
                   to="/register"
-                  className="
-                    flex
-                    items-center
-                    gap-1.5
-                    rounded-lg
-                    bg-primary-700
-                    px-4
-                    py-2
-                    text-sm
-                    font-medium
-                    text-white
-                    transition-colors
-                    hover:bg-primary-800
-                  "
+                  className="flex items-center gap-2 rounded-full bg-[#07545e] px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-[#043f47] hover:shadow-md"
                 >
                   <FiUserPlus />
-
                   Sign Up
                 </Link>
 
@@ -435,25 +197,11 @@ export const Navbar: React.FC = () => {
 
             )}
 
-
-            {/* =================================================
-                MOBILE MENU BUTTON
-            ================================================= */}
-
+            {/* Mobile Menu Button */}
             <button
               type="button"
-              className="
-                rounded-lg
-                p-2
-                text-gray-600
-                hover:bg-gray-100
-                md:hidden
-              "
-              onClick={() =>
-                setMenuOpen(
-                  !menuOpen
-                )
-              }
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-[#475569] transition hover:bg-[#f4efe5] md:hidden"
               aria-label="Toggle menu"
             >
               {menuOpen
@@ -465,231 +213,80 @@ export const Navbar: React.FC = () => {
 
         </div>
 
-
-        {/* =====================================================
-            MOBILE MENU
-        ===================================================== */}
-
+        {/* Mobile Menu */}
         {menuOpen && (
+          <div className="border-t border-[#eee7dc] pb-4 pt-3 md:hidden">
 
-          <div
-            className="
-              space-y-1
-              border-t
-              border-gray-100
-              py-3
-              md:hidden
-            "
-          >
-
-            {navLinks.map(
-              (link) => (
-
+            <div className="space-y-1">
+              {navLinks.map((link) => (
                 <Link
                   key={link.to}
                   to={link.to}
-                  onClick={() =>
-                    setMenuOpen(
-                      false
-                    )
-                  }
-                  className={`
-                    block
-                    rounded-lg
-                    px-3
-                    py-2
-                    text-sm
-                    font-medium
-                    transition-colors
-
-                    ${isActive(
-                    link.to
-                  )
-                      ? 'bg-primary-50 text-primary-700'
-                      : 'text-gray-700 hover:bg-primary-50 hover:text-primary-700'
-                    }
-                  `}
+                  onClick={() => setMenuOpen(false)}
+                  className={`block rounded-full px-5 py-3 text-sm font-medium transition ${
+                    isActive(link.to)
+                      ? 'bg-[#e8f3f0] text-[#07545e]'
+                      : 'text-[#475569] hover:bg-[#f5f1e9] hover:text-[#07545e]'
+                  }`}
                 >
                   {link.label}
                 </Link>
-
-              )
-            )}
-
+              ))}
+            </div>
 
             {isAuthenticated() ? (
+              <div className="mt-3 border-t border-[#eee7dc] pt-3">
 
-              <>
+                <div className="mb-2 flex items-center gap-3 rounded-[24px] bg-[#f8f4eb] px-4 py-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#dceeea] text-xs font-bold text-[#07545e]">
+                    {user?.username?.charAt(0).toUpperCase()}
+                  </div>
 
-                {/* MOBILE USER */}
-
-                <div
-                  className="
-                    mt-2
-                    border-t
-                    border-gray-100
-                    px-3
-                    py-3
-                  "
-                >
-
-                  <div
-                    className="
-                      flex
-                      items-center
-                      gap-2
-                    "
-                  >
-
-                    <div
-                      className="
-                        flex
-                        h-8
-                        w-8
-                        items-center
-                        justify-center
-                        rounded-full
-                        bg-primary-100
-                        text-xs
-                        font-bold
-                        text-primary-700
-                      "
-                    >
-                      {user?.username
-                        ?.charAt(0)
-                        .toUpperCase()}
+                  <div>
+                    <div className="text-sm font-semibold text-[#25324a]">
+                      {user?.first_name || user?.username}
                     </div>
 
-
-                    <div>
-
-                      <div
-                        className="
-                          text-sm
-                          font-medium
-                          text-gray-800
-                        "
-                      >
-                        {user?.first_name ||
-                          user?.username}
-                      </div>
-
-
-                      <div
-                        className="
-                          text-xs
-                          capitalize
-                          text-gray-400
-                        "
-                      >
-                        {user?.role_display ||
-                          user?.role?.replace(
-                            /_/g,
-                            ' '
-                          )}
-                      </div>
-
+                    <div className="text-xs capitalize text-[#94a3b8]">
+                      {user?.role_display ||
+                        user?.role?.replace(/_/g, ' ')}
                     </div>
 
                   </div>
 
                 </div>
 
-
                 <button
                   type="button"
-                  onClick={
-                    handleLogout
-                  }
-                  className="
-                    flex
-                    w-full
-                    items-center
-                    gap-2
-                    rounded-lg
-                    px-3
-                    py-2
-                    text-left
-                    text-sm
-                    text-red-600
-                    hover:bg-red-50
-                  "
+                  onClick={handleLogout}
+                  className="flex w-full items-center gap-2 rounded-full px-5 py-3 text-sm font-medium text-red-600 transition hover:bg-red-50"
                 >
                   <FiLogOut />
-
                   Sign Out
                 </button>
-
-              </>
-
+              </div>
             ) : (
-
-              /* MOBILE LOGIN */
-
-              <div
-                className="
-                  mt-2
-                  space-y-1
-                  border-t
-                  border-gray-100
-                  pt-2
-                "
-              >
+              <div className="mt-3 space-y-2 border-t border-[#eee7dc] pt-3">
 
                 <Link
                   to="/login"
-                  onClick={() =>
-                    setMenuOpen(
-                      false
-                    )
-                  }
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                    rounded-lg
-                    px-3
-                    py-2
-                    text-sm
-                    font-medium
-                    text-gray-700
-                    hover:bg-gray-100
-                  "
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 rounded-full border border-[#ddd6c9] bg-white px-5 py-3 text-sm font-semibold text-[#334155]"
                 >
                   <FiUser />
-
                   Login
                 </Link>
 
-
                 <Link
                   to="/register"
-                  onClick={() =>
-                    setMenuOpen(
-                      false
-                    )
-                  }
-                  className="
-                    flex
-                    items-center
-                    gap-2
-                    rounded-lg
-                    bg-primary-700
-                    px-3
-                    py-2
-                    text-sm
-                    font-medium
-                    text-white
-                    hover:bg-primary-800
-                  "
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center justify-center gap-2 rounded-full bg-[#07545e] px-5 py-3 text-sm font-semibold text-white"
                 >
                   <FiUserPlus />
-
                   Sign Up
                 </Link>
 
               </div>
-
             )}
 
           </div>
