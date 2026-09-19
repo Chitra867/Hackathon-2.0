@@ -236,7 +236,7 @@ class Availability(models.Model):
         ordering = ['-updated_at']
         constraints = [
             models.CheckConstraint(
-                condition=(
+                check=(
                     models.Q(available_count__isnull=True)
                     | models.Q(total_count__isnull=True)
                     | models.Q(
