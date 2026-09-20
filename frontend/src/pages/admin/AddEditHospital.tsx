@@ -127,19 +127,26 @@ export const AddEditHospital: React.FC = () => {
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Section title="Basic Information">
-  <Field label="Hospital Name" required span2>
-    <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Tribhuvan University Teaching Hospital" required />
-  </Field>
-  <Field label="Type">
-    <select className={inputClass} value={form.type} onChange={(e) => set('type', e.target.value)}>
-      <option value="district">District Hospital</option>
-      <option value="private">Private Hospital</option>
-      <option value="teaching">Teaching Hospital</option>
-      <option value="community">Community Hospital</option>
-      <option value="clinic">Clinic / Health Post</option>
-    </select>
-  </Field>
-</Section>
+            <Field label="Hospital Name" required span2>
+              <input className={inputClass} value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Tribhuvan University Teaching Hospital" required />
+            </Field>
+            <Field label="Type">
+              <select className={inputClass} value={form.type} onChange={(e) => set('type', e.target.value)}>
+                <option value="district">District Hospital</option>
+                <option value="private">Private Hospital</option>
+                <option value="teaching">Teaching Hospital</option>
+                <option value="community">Community Hospital</option>
+                <option value="clinic">Clinic / Health Post</option>
+              </select>
+            </Field>
+            <Field label="Verification Status">
+              <select className={inputClass} value={form.verification_status} onChange={(e) => set('verification_status', e.target.value)}>
+                <option value="pending">Pending</option>
+                <option value="verified">Verified</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </Field>
+          </Section>
 
           <Section title="Location">
             <Field label="Full Address" required span2>
