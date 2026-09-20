@@ -227,54 +227,35 @@ class HospitalViewSet(viewsets.ModelViewSet):
         # SERVICE FILTER
         # -------------------------------------------------
 
-        service_query = self.request.query_params.get(
-            'service',
-            '',
-        ).strip()
+        # Support both ?service=1,2,3 (comma-separated) and
+        # ?service=1&service=2 (repeated params) for multi-select.
+        raw_services = self.request.query_params.getlist('service')
+        service_ids = []
+        service_names = []
+        for raw in raw_services:
+            for part in raw.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                if part.isdecimal():
+                    service_ids.append(int(part))
+                else:
+                    service_names.append(part)
 
-        if service_query:
-
-            # ---------------------------------------------
-            # SEARCH BY NUMERIC SERVICE ID
-            # ---------------------------------------------
-
-            if service_query.isdecimal():
-
+        if service_ids or service_names:
+            for sid in service_ids:
                 queryset = queryset.filter(
-                    hospital_services__service_id=int(
-                        service_query
-                    ),
+                    hospital_services__service_id=sid,
                     hospital_services__is_available=True,
                     hospital_services__service__is_active=True,
                 )
-
-            # ---------------------------------------------
-            # SEARCH BY SERVICE NAME OR CATEGORY
-            # ---------------------------------------------
-
-            else:
-
+            for name in service_names:
                 queryset = queryset.filter(
-
-                    Q(
-                        hospital_services__service__name__icontains=service_query
-                    )
-
-                    |
-
-                    Q(
-                        hospital_services__service__category__iexact=service_query
-                    ),
-
+                    Q(hospital_services__service__name__icontains=name) |
+                    Q(hospital_services__service__category__iexact=name),
                     hospital_services__is_available=True,
-
                     hospital_services__service__is_active=True,
-
                 )
-
-            # Prevent duplicate hospitals when multiple
-            # services match the search query.
-
             queryset = queryset.distinct()
 
         # -------------------------------------------------
@@ -510,43 +491,25 @@ class ServiceViewSet(viewsets.ModelViewSet):
             'list',
             'retrieve',
         ):
+            return [AllowAny()]
 
-            return [
-                AllowAny(),
-            ]
-
-        return [
-            IsAuthenticated(),
-            IsSystemAdmin(),
-        ]
+        # hospital_admin may create new catalog services (to add to their hospital)
+        # and delete services — system_admin has full access
+        return [IsAuthenticated()]
 
     # -----------------------------------------------------
-    # GET SERVICES
+    # VALIDATE ROLE FOR WRITE ACTIONS
     # -----------------------------------------------------
 
-    def get_queryset(self):
-
-        queryset = Service.objects.all()
-
+    def _assert_can_write(self):
         user = self.request.user
-
-        if (
-            not user.is_authenticated
-            or getattr(user, 'role', None)
-            != 'system_admin'
-        ):
-
-            queryset = queryset.filter(
-                is_active=True
-            )
-
-        return queryset.order_by('name')
-
-    # -----------------------------------------------------
-    # CREATE SERVICE — notify all hospital admins
-    # -----------------------------------------------------
+        role = getattr(user, 'role', None)
+        if role not in ('system_admin', 'hospital_admin'):
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only system admins and hospital admins can manage services.')
 
     def perform_create(self, serializer):
+        self._assert_can_write()
         service = serializer.save()
         try:
             from apps.notifications.models import Notification
@@ -559,7 +522,7 @@ class ServiceViewSet(viewsets.ModelViewSet):
                 notification_type='new_service_added',
                 title='New Medical Service Added',
                 message=(
-                    f"A new service has been added by the administrator: "
+                    f"A new service has been added: "
                     f"\"{service.name}\" ({service.get_category_display()}). "
                     f"You can now link it to your hospital."
                 ),
@@ -569,6 +532,39 @@ class ServiceViewSet(viewsets.ModelViewSet):
         except Exception as notif_err:
             import logging as _log
             _log.getLogger(__name__).warning("Failed to create new-service notifications: %s", notif_err)
+
+    # -----------------------------------------------------
+    # GET SERVICES — system_admin sees all; others see active only
+    # -----------------------------------------------------
+
+    def get_queryset(self):
+        queryset = Service.objects.all()
+        user = self.request.user
+        if (
+            not user.is_authenticated
+            or getattr(user, 'role', None) != 'system_admin'
+        ):
+            queryset = queryset.filter(is_active=True)
+        return queryset.order_by('name')
+
+    # -----------------------------------------------------
+    # DELETE SERVICE — hospital_admin or system_admin only
+    # -----------------------------------------------------
+
+    def perform_destroy(self, instance):
+        self._assert_can_write()
+        instance.delete()
+
+    # -----------------------------------------------------
+    # UPDATE SERVICE — system_admin only (hospital_admin cannot edit catalog)
+    # -----------------------------------------------------
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if getattr(user, 'role', None) != 'system_admin':
+            from rest_framework.exceptions import PermissionDenied
+            raise PermissionDenied('Only system admins can edit existing services.')
+        serializer.save()
 
 
 # =========================================================
@@ -635,8 +631,38 @@ class HospitalServiceViewSet(
 
         return [
             IsAuthenticated(),
-            IsSystemAdmin(),
         ]
+
+    # -----------------------------------------------------
+    # VALIDATE HOSPITAL ADMIN SCOPE
+    # -----------------------------------------------------
+
+    def _check_hospital_admin_scope(self, hospital_id):
+        """Ensure hospital_admin/staff can only touch their own hospital."""
+        user = self.request.user
+        if getattr(user, 'role', None) == 'system_admin':
+            return
+        if getattr(user, 'role', None) in ('hospital_admin', 'hospital_staff'):
+            if not getattr(user, 'hospital_id', None):
+                raise PermissionDenied('You are not associated with any hospital.')
+            if hospital_id and int(hospital_id) != int(user.hospital_id):
+                raise PermissionDenied('You can only manage services for your own hospital.')
+            return
+        raise PermissionDenied('You do not have permission to manage hospital services.')
+
+    def perform_create(self, serializer):
+        hospital = serializer.validated_data.get('hospital')
+        self._check_hospital_admin_scope(hospital.id if hospital else None)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        instance = self.get_object()
+        self._check_hospital_admin_scope(instance.hospital_id)
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        self._check_hospital_admin_scope(instance.hospital_id)
+        instance.delete()
 
 
 # =========================================================

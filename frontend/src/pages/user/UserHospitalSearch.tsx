@@ -19,6 +19,7 @@ export const UserHospitalSearch: React.FC = () => {
     q: searchParams.get('q') || '',
     district: searchParams.get('district') || '',
     emergency: searchParams.get('emergency') === 'true',
+    serviceIds: [],
   });
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
@@ -63,6 +64,7 @@ export const UserHospitalSearch: React.FC = () => {
         q: currentFilters.q || undefined,
         district: currentFilters.district || undefined,
         emergency: currentFilters.emergency || undefined,
+        services: currentFilters.serviceIds.length > 0 ? currentFilters.serviceIds : undefined,
         lat: userLat ?? undefined,
         lng: userLng ?? undefined,
         page: pageNum,
