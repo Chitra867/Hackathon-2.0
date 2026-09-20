@@ -36,6 +36,27 @@ import heroImage from './images/hero.png';
 
 const PAGE_SIZE = 12;
 
+// All 77 districts of Nepal. Keep this independent of loaded hospital records.
+const NEPAL_DISTRICTS = [
+  'Achham', 'Arghakhanchi', 'Baglung', 'Baitadi', 'Bajhang',
+  'Bajura', 'Banke', 'Bara', 'Bardiya', 'Bhaktapur',
+  'Bhojpur', 'Chitwan', 'Dadeldhura', 'Dailekh', 'Dang',
+  'Darchula', 'Dhading', 'Dhankuta', 'Dhanusha', 'Dolakha',
+  'Dolpa', 'Doti', 'Gorkha', 'Gulmi', 'Humla',
+  'Ilam', 'Jajarkot', 'Jhapa', 'Jumla', 'Kailali',
+  'Kalikot', 'Kanchanpur', 'Kapilvastu', 'Kaski', 'Kathmandu',
+  'Kavrepalanchok', 'Khotang', 'Lalitpur', 'Lamjung', 'Mahottari',
+  'Makwanpur', 'Manang', 'Morang', 'Mugu', 'Mustang',
+  'Myagdi', 'Nawalpur', 'Nuwakot', 'Okhaldhunga', 'Palpa',
+  'Panchthar', 'Parasi', 'Parbat', 'Parsa', 'Pyuthan',
+  'Ramechhap', 'Rasuwa', 'Rautahat', 'Rolpa', 'Rukum East',
+  'Rukum West', 'Rupandehi', 'Salyan', 'Sankhuwasabha', 'Saptari',
+  'Sarlahi', 'Sindhuli', 'Sindhupalchok', 'Siraha', 'Solukhumbu',
+  'Sunsari', 'Surkhet', 'Syangja', 'Tanahun', 'Taplejung',
+  'Terhathum', 'Udayapur',
+];
+
+
 interface HospitalListResponse {
   results: HospitalListItem[];
   next?: string | null;
@@ -175,19 +196,7 @@ export const SearchPage: React.FC = () => {
   // DISTRICT OPTIONS
   // --------------------------------------------------
 
-  const districts = useMemo(() => {
-    const names = hospitals
-      .map((hospital) => hospital.district)
-      .filter(
-        (district): district is string =>
-          typeof district === 'string' &&
-          district.trim().length > 0
-      );
-
-    return [...new Set(names)].sort((a, b) =>
-      a.localeCompare(b)
-    );
-  }, [hospitals]);
+  const districts = NEPAL_DISTRICTS;
 
   // --------------------------------------------------
   // FILTER HOSPITALS
