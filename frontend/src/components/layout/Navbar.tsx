@@ -25,9 +25,13 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  // "Find Hospital" and "About" are only for logged-out visitors.
+  // Any authenticated role (super admin, hospital admin, user) skips them.
   const navLinks = [
-    { to: '/', label: 'Find Hospital' },
-    { to: '/about', label: 'About' },
+    ...(!authenticated ? [
+      { to: '/', label: 'Find Hospital' },
+      { to: '/about', label: 'About' },
+    ] : []),
     ...(authenticated && user?.role !== 'user'
       ? [{ to: getDashboardPath(), label: 'Dashboard' }]
       : []),
