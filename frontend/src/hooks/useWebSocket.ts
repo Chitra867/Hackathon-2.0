@@ -68,6 +68,7 @@ export function useWebSocket(
     };
 
     ws.onmessage = (event: MessageEvent) => {
+      if (!onMessage) return;
       try {
         const data = JSON.parse(event.data as string);
 
@@ -80,6 +81,8 @@ export function useWebSocket(
             : 'info',
           title: data.title || 'Update',
           message: data.message || JSON.stringify(data),
+          timestamp: new Date().toISOString(),
+          read: false,
           data,
         };
 

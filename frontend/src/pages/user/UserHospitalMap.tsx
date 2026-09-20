@@ -303,6 +303,7 @@ export const UserHospitalMap: React.FC = () => {
         q:         f.q         || undefined,
         district:  f.district  || undefined,
         emergency: f.emergency || undefined,
+        services:  f.serviceIds.length > 0 ? f.serviceIds : undefined,
         lat:       latRef.current ?? undefined,
         lng:       lngRef.current ?? undefined,
         page_size: 60,
