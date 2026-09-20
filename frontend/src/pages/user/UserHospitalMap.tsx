@@ -254,7 +254,7 @@ export const UserHospitalMap: React.FC = () => {
   const navigate = useNavigate();
 
   const [filters, setFilters] = useState<SearchFiltersState>({
-    q: '', district: '', emergency: false,
+    q: '', district: '', emergency: false, serviceIds: [],
   });
   const [hospitals, setHospitals]     = useState<HospitalSearchResult[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -303,6 +303,7 @@ export const UserHospitalMap: React.FC = () => {
         q:         f.q         || undefined,
         district:  f.district  || undefined,
         emergency: f.emergency || undefined,
+        services:  f.serviceIds.length > 0 ? f.serviceIds : undefined,
         lat:       latRef.current ?? undefined,
         lng:       lngRef.current ?? undefined,
         page_size: 60,
@@ -318,7 +319,7 @@ export const UserHospitalMap: React.FC = () => {
 
   // Initial load with empty filters
   useEffect(() => {
-    doSearch({ q: '', district: '', emergency: false });
+    doSearch({ q: '', district: '', emergency: false, serviceIds: [] });
   }, [doSearch]);
 
   /* ── onSearch from SearchFilters ────────────────────────── */
