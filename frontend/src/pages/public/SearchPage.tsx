@@ -39,7 +39,7 @@ import heroImage from './images/hero.png';
 // CONSTANTS
 // --------------------------------------------------
 
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 6;
 
 // All 77 districts of Nepal. Keep this independent of loaded hospital records.
 const NEPAL_DISTRICTS = [
