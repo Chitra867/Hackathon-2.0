@@ -45,7 +45,9 @@ export const HAPatientManagement: React.FC = () => {
   const [patients, setPatients]     = useState<PatientRequest[]>([]);
   const [loading, setLoading]       = useState(true);
   const [status, setStatus]         = useState('');
+  // `search` is the live input value; `committedSearch` is what's sent to the API
   const [search, setSearch]         = useState('');
+  const [committedSearch, setCommittedSearch] = useState('');
   const [page, setPage]             = useState(1);
   const [total, setTotal]           = useState(0);
   const [hasNext, setHasNext]       = useState(false);
@@ -56,12 +58,16 @@ export const HAPatientManagement: React.FC = () => {
   const [modalNote, setModalNote]   = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Debounce timer ref
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fetch uses committedSearch so it only runs when the search is "committed"
   const fetchPatients = useCallback(async (p = 1) => {
     setLoading(true);
     try {
       const params: Record<string, string | number> = { page: p, page_size: PAGE_SIZE };
       if (status) params.status = status;
-      if (search.trim()) params.search = search.trim();
+      if (committedSearch.trim()) params.search = committedSearch.trim();
       const res = await patientRequestsApi.list(params);
       if (!mountedRef.current) return;
       setPatients(res.data.results);
@@ -73,9 +79,45 @@ export const HAPatientManagement: React.FC = () => {
     } finally {
       if (mountedRef.current) setLoading(false);
     }
-  }, [status, search]);
+  }, [status, committedSearch]);
 
   useEffect(() => { fetchPatients(1); }, [fetchPatients, refreshKey]);
+
+  // Handle typing: debounce 400ms then commit search
+  const handleSearchInput = (value: string) => {
+    setSearch(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setCommittedSearch(value);
+    }, 400);
+  };
+
+  // Handle Enter key: commit immediately
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      setCommittedSearch(search);
+    }
+  };
+
+  // Handle Search button click: commit immediately
+  const handleSearchSubmit = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setCommittedSearch(search);
+  };
+
+  // Handle clear button
+  const handleClearSearch = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    setSearch('');
+    setCommittedSearch('');
+  };
+
+  // Status change re-fetches immediately
+  const handleStatusChange = (val: string) => {
+    setStatus(val);
+    setPage(1);
+  };
 
   const handleRespond = async () => {
     if (!modal || submitting) return;
@@ -130,23 +172,23 @@ export const HAPatientManagement: React.FC = () => {
       <div className="bg-white rounded-2xl border border-[#ede0ce] shadow-sm p-4 mb-5 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && fetchPatients(1)}
+          <input type="text" value={search} onChange={e => handleSearchInput(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder="Search by patient name, code, or condition…"
             className="w-full pl-9 pr-9 py-2.5 rounded-xl border border-[#ede0ce] bg-[#faf6ee] text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><FiX /></button>
+            <button onClick={handleClearSearch} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><FiX /></button>
           )}
         </div>
         <div className="relative">
           <FiFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <select value={status} onChange={e => setStatus(e.target.value)}
+          <select value={status} onChange={e => handleStatusChange(e.target.value)}
             className="pl-9 pr-4 py-2.5 rounded-xl border border-[#ede0ce] bg-[#faf6ee] text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 appearance-none">
             {STATUS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
-        <button onClick={() => fetchPatients(1)}
+        <button onClick={handleSearchSubmit}
           className="px-5 py-2.5 rounded-xl bg-primary-700 text-white text-sm font-semibold hover:bg-primary-800 transition-colors flex items-center gap-2">
           <FiSearch /> Search
         </button>
