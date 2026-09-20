@@ -227,54 +227,35 @@ class HospitalViewSet(viewsets.ModelViewSet):
         # SERVICE FILTER
         # -------------------------------------------------
 
-        service_query = self.request.query_params.get(
-            'service',
-            '',
-        ).strip()
+        # Support both ?service=1,2,3 (comma-separated) and
+        # ?service=1&service=2 (repeated params) for multi-select.
+        raw_services = self.request.query_params.getlist('service')
+        service_ids = []
+        service_names = []
+        for raw in raw_services:
+            for part in raw.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                if part.isdecimal():
+                    service_ids.append(int(part))
+                else:
+                    service_names.append(part)
 
-        if service_query:
-
-            # ---------------------------------------------
-            # SEARCH BY NUMERIC SERVICE ID
-            # ---------------------------------------------
-
-            if service_query.isdecimal():
-
+        if service_ids or service_names:
+            for sid in service_ids:
                 queryset = queryset.filter(
-                    hospital_services__service_id=int(
-                        service_query
-                    ),
+                    hospital_services__service_id=sid,
                     hospital_services__is_available=True,
                     hospital_services__service__is_active=True,
                 )
-
-            # ---------------------------------------------
-            # SEARCH BY SERVICE NAME OR CATEGORY
-            # ---------------------------------------------
-
-            else:
-
+            for name in service_names:
                 queryset = queryset.filter(
-
-                    Q(
-                        hospital_services__service__name__icontains=service_query
-                    )
-
-                    |
-
-                    Q(
-                        hospital_services__service__category__iexact=service_query
-                    ),
-
+                    Q(hospital_services__service__name__icontains=name) |
+                    Q(hospital_services__service__category__iexact=name),
                     hospital_services__is_available=True,
-
                     hospital_services__service__is_active=True,
-
                 )
-
-            # Prevent duplicate hospitals when multiple
-            # services match the search query.
-
             queryset = queryset.distinct()
 
         # -------------------------------------------------

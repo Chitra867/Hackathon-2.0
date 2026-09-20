@@ -748,15 +748,24 @@ export const userPortalApi = {
 
   searchHospitals: (params: {
     q?: string;
-    service_id?: number;
+    service?: number;
+    services?: number[];
     district?: string;
     emergency?: boolean;
     lat?: number;
     lng?: number;
     page?: number;
     page_size?: number;
-  }) =>
-    api.get<HospitalSearchResponse>('/user/hospital-search/', { params }),
+  }) => {
+    // Serialize multiple service IDs as repeated ?service= params
+    const { services, ...rest } = params;
+    const searchParams = new URLSearchParams();
+    Object.entries(rest).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') searchParams.append(k, String(v));
+    });
+    (services ?? []).forEach((id) => searchParams.append('service', String(id)));
+    return api.get<HospitalSearchResponse>(`/user/hospital-search/?${searchParams.toString()}`);
+  },
 
   getHospitalDetail: (id: number) =>
     api.get<UserHospitalDetail>(`/user/hospitals/${id}/`),
