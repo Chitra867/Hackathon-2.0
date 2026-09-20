@@ -69,6 +69,7 @@ LOCAL_APPS = [
     'apps.hospitals',
     'apps.referrals',
     'apps.audit',
+    'apps.notifications',
 ]
 
 INSTALLED_APPS = (

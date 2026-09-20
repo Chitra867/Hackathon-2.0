@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Link,
   useSearchParams,
+  useLocation,
 } from 'react-router-dom';
 
 import {
@@ -47,6 +48,8 @@ interface HospitalListResponse {
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const location = useLocation();
 
   const { isAuthenticated } = useAuthStore();
 
@@ -121,7 +124,8 @@ export const SearchPage: React.FC = () => {
 
           // Support an API returning an array.
           if (Array.isArray(data)) {
-            allHospitals.push(...data);
+            // Client-side safety: only show active hospitals
+            allHospitals.push(...data.filter(h => h.is_active !== false));
             break;
           }
 
@@ -132,7 +136,8 @@ export const SearchPage: React.FC = () => {
             );
           }
 
-          allHospitals.push(...data.results);
+          // Client-side safety: only show active hospitals
+          allHospitals.push(...data.results.filter(h => h.is_active !== false));
 
           if (!data.next) {
             break;
@@ -169,7 +174,9 @@ export const SearchPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  // location.key changes on every navigation — forces a fresh fetch each visit.
+  // refreshKey handles manual refresh button clicks.
+  }, [refreshKey, location.key]);
 
   // --------------------------------------------------
   // DISTRICT OPTIONS

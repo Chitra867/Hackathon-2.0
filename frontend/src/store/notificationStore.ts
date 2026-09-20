@@ -1,111 +1,145 @@
-import { create } from 'zustand';
+/**
+ * notificationStore.ts
+ *
+ * Zustand store for in-app notifications backed by the REST API.
+ * Polls /api/notifications/unread-count/ every 30 s while the user is
+ * authenticated, and fetches the full list on demand (e.g. when the bell
+ * is clicked).
+ */
 
-export interface AppNotification {
-  id: string;
-  type: 'referral' | 'availability' | 'info';
-  title: string;
-  message: string;
-  timestamp: string;
-  read: boolean;
-  data?: Record<string, unknown>;
-}
+import { create } from 'zustand';
+import { notificationsApi, type AppNotificationItem } from '../lib/api';
 
 interface NotificationState {
-  notifications: AppNotification[];
-  wsConnected: boolean;
-  wsSocket: WebSocket | null;
+  /** Full notification list (loaded when dropdown is opened). */
+  notifications: AppNotificationItem[];
+  /** Fast badge count, refreshed by polling. */
+  unreadCount: number;
+  /** Whether the full list is currently being fetched. */
+  loading: boolean;
+  /** Whether the polling interval is running. */
+  polling: boolean;
 
-  addNotification: (n: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => void;
-  markAsRead: (id: string) => void;
-  markAllRead: () => void;
-  clearAll: () => void;
-  unreadCount: () => number;
-  connect: (hospitalId?: number) => void;
-  disconnect: () => void;
+  // ── Actions ─────────────────────────────────────────────────────────────
+  /** Fetch full list + update badge count. */
+  fetchNotifications: () => Promise<void>;
+  /** Mark specific IDs as read (or all if ids is empty / omitted). */
+  markRead: (ids?: number[]) => Promise<void>;
+  /** Mark all as read. */
+  markAllRead: () => Promise<void>;
+  /** Delete all notifications. */
+  clearAll: () => Promise<void>;
+  /** Start background polling (call after login). */
+  startPolling: () => void;
+  /** Stop background polling (call after logout). */
+  stopPolling: () => void;
 }
+
+let _pollInterval: ReturnType<typeof setInterval> | null = null;
 
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
-  wsConnected: false,
-  wsSocket: null,
+  unreadCount: 0,
+  loading: false,
+  polling: false,
 
-  addNotification: (n) => {
-    const notification: AppNotification = {
-      ...n,
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      read: false,
-    };
-    set((state) => ({ notifications: [notification, ...state.notifications].slice(0, 50) }));
-  },
-
-  markAsRead: (id) => {
-    set((state) => ({
-      notifications: state.notifications.map((n) =>
-        n.id === id ? { ...n, read: true } : n
-      ),
-    }));
-  },
-
-  markAllRead: () => {
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, read: true })),
-    }));
-  },
-
-  clearAll: () => set({ notifications: [] }),
-
-  unreadCount: () => get().notifications.filter((n) => !n.read).length,
-
-  connect: (hospitalId?: number) => {
-    const { wsSocket } = get();
-    if (wsSocket) wsSocket.close();
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const path = hospitalId
-      ? `${protocol}//${window.location.hostname}:8000/ws/availability/${hospitalId}/`
-      : `${protocol}//${window.location.hostname}:8000/ws/availability/`;
-
+  // ──────────────────────────────────────────────────────────────────────────
+  // fetchNotifications
+  // ──────────────────────────────────────────────────────────────────────────
+  fetchNotifications: async () => {
+    set({ loading: true });
     try {
-      const ws = new WebSocket(path);
-
-      ws.onopen = () => set({ wsConnected: true });
-      ws.onclose = () => set({ wsConnected: false, wsSocket: null });
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'availability_update') {
-            get().addNotification({
-              type: 'availability',
-              title: 'Availability Updated',
-              message: `${data.hospital_name}: ${data.availability_type} is now ${data.status}`,
-              data,
-            });
-          } else if (data.type === 'referral_update') {
-            get().addNotification({
-              type: 'referral',
-              title: 'Referral Update',
-              message: `Referral ${data.referral_code} status: ${data.status}`,
-              data,
-            });
-          }
-        } catch {
-          // Ignore parse errors
-        }
-      };
-
-      set({ wsSocket: ws });
+      const res = await notificationsApi.list();
+      const items = res.data;
+      const unread = items.filter((n) => !n.is_read).length;
+      set({ notifications: items, unreadCount: unread, loading: false });
     } catch {
-      // WS not available in dev without backend
+      set({ loading: false });
     }
   },
 
-  disconnect: () => {
-    const { wsSocket } = get();
-    if (wsSocket) {
-      wsSocket.close();
+  // ──────────────────────────────────────────────────────────────────────────
+  // markRead
+  // ──────────────────────────────────────────────────────────────────────────
+  markRead: async (ids?: number[]) => {
+    try {
+      if (ids && ids.length > 0) {
+        await notificationsApi.markRead(ids);
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            ids.includes(n.id) ? { ...n, is_read: true } : n
+          ),
+          unreadCount: Math.max(0, state.unreadCount - ids.length),
+        }));
+      } else {
+        await notificationsApi.markAllRead();
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
+          unreadCount: 0,
+        }));
+      }
+    } catch {
+      // silent — badge will self-correct on next poll
     }
-    set({ wsConnected: false, wsSocket: null });
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // markAllRead
+  // ──────────────────────────────────────────────────────────────────────────
+  markAllRead: async () => {
+    try {
+      await notificationsApi.markAllRead();
+      set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
+        unreadCount: 0,
+      }));
+    } catch {
+      // silent
+    }
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // clearAll
+  // ──────────────────────────────────────────────────────────────────────────
+  clearAll: async () => {
+    try {
+      await notificationsApi.clearAll();
+      set({ notifications: [], unreadCount: 0 });
+    } catch {
+      // silent
+    }
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // startPolling — lightweight: only fetches the unread count every 30 s
+  // ──────────────────────────────────────────────────────────────────────────
+  startPolling: () => {
+    if (_pollInterval) return; // already running
+
+    // Fetch immediately on start
+    notificationsApi
+      .unreadCount()
+      .then((res) => set({ unreadCount: res.data.count }))
+      .catch(() => {});
+
+    _pollInterval = setInterval(() => {
+      notificationsApi
+        .unreadCount()
+        .then((res) => set({ unreadCount: res.data.count }))
+        .catch(() => {});
+    }, 30_000);
+
+    set({ polling: true });
+  },
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // stopPolling
+  // ──────────────────────────────────────────────────────────────────────────
+  stopPolling: () => {
+    if (_pollInterval) {
+      clearInterval(_pollInterval);
+      _pollInterval = null;
+    }
+    set({ polling: false, notifications: [], unreadCount: 0 });
   },
 }));

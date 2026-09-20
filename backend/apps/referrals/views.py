@@ -138,6 +138,59 @@ class ReferralViewSet(viewsets.ModelViewSet):
             }
         )
 
+        # ── Notifications ──────────────────────────────────────
+        try:
+            from apps.notifications.models import Notification
+            from apps.accounts.models import User as UserModel
+
+            # 1. Notify all super-admins about every new referral
+            super_admins = list(UserModel.objects.filter(role='system_admin', is_active=True))
+            Notification.create_for_users(
+                recipients=super_admins,
+                notification_type='new_referral',
+                title='New Referral Created',
+                message=(
+                    f"Referral [{referral.referral_code}] from "
+                    f"{referral.referring_facility.name} to "
+                    f"{referral.destination_facility.name}. "
+                    f"Urgency: {referral.get_urgency_display()}."
+                ),
+                link_url='/admin/patient-requests',
+                metadata={
+                    'referral_id': referral.id,
+                    'referral_code': referral.referral_code,
+                    'urgency': referral.urgency,
+                },
+            )
+
+            # 2. Notify hospital-admin(s) of the destination facility
+            dest_admins = list(
+                UserModel.objects.filter(
+                    role__in=['hospital_admin', 'hospital_staff'],
+                    hospital=referral.destination_facility,
+                    is_active=True,
+                )
+            )
+            Notification.create_for_users(
+                recipients=dest_admins,
+                notification_type='referral_incoming',
+                title='Incoming Referral',
+                message=(
+                    f"New referral [{referral.referral_code}] received from "
+                    f"{referral.referring_facility.name}. "
+                    f"Urgency: {referral.get_urgency_display()}."
+                ),
+                link_url='/hadmin/referrals',
+                metadata={
+                    'referral_id': referral.id,
+                    'referral_code': referral.referral_code,
+                    'urgency': referral.urgency,
+                },
+            )
+        except Exception as notif_err:
+            logger.warning("Failed to create referral notifications: %s", notif_err)
+        # ── End Notifications ──────────────────────────────────
+
         return Response(
             ReferralListSerializer(referral, context={'request': request}).data,
             status=status.HTTP_201_CREATED
@@ -227,6 +280,39 @@ class ReferralViewSet(viewsets.ModelViewSet):
                 'new_status': new_status,
             }
         )
+
+        # ── Notifications ──────────────────────────────────────
+        try:
+            from apps.notifications.models import Notification
+
+            status_labels = {
+                'accepted': 'accepted ✓',
+                'rejected': 'rejected ✗',
+                'call_required': 'requires a call',
+            }
+            label = status_labels.get(new_status, new_status)
+
+            # Notify the health worker / hospital admin who created the referral
+            creator = referral.created_by
+            Notification.create_for_users(
+                recipients=[creator],
+                notification_type='referral_status',
+                title=f"Referral {new_status.replace('_', ' ').title()}",
+                message=(
+                    f"Your referral [{referral.referral_code}] to "
+                    f"{referral.destination_facility.name} has been {label}."
+                    + (f" Note: {note}" if note else "")
+                ),
+                link_url='/user/referrals',
+                metadata={
+                    'referral_id': referral.id,
+                    'referral_code': referral.referral_code,
+                    'new_status': new_status,
+                },
+            )
+        except Exception as notif_err:
+            logger.warning("Failed to create referral-response notifications: %s", notif_err)
+        # ── End Notifications ──────────────────────────────────
 
         return Response(
             ReferralDetailSerializer(referral, context={'request': request}).data

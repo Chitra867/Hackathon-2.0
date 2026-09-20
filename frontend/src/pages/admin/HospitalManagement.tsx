@@ -46,23 +46,36 @@ export const HospitalManagement: React.FC = () => {
     setToggling(hospital.id);
 
     try {
-      await hospitalsApi.update(hospital.id, {
-        is_active: !hospital.is_active,
-      });
+      const response = await hospitalsApi.toggleActive(hospital.id);
+
+      const newActiveState = response.data.is_active;
 
       toast.success(
-        `Hospital ${hospital.is_active ? 'deactivated' : 'activated'}`
+        newActiveState
+          ? `✓ ${hospital.name} is now active`
+          : `${hospital.name} has been deactivated`
       );
 
       setHospitals((prev) =>
         prev.map((h) =>
           h.id === hospital.id
-            ? { ...h, is_active: !h.is_active }
+            ? { ...h, is_active: newActiveState }
             : h
         )
       );
-    } catch {
-      toast.error('Failed to update hospital');
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status?: number; data?: { detail?: string; error?: string } } };
+      const detail =
+        axiosErr?.response?.data?.detail ||
+        axiosErr?.response?.data?.error;
+
+      if (axiosErr?.response?.status === 403) {
+        toast.error('Permission denied. System admin access required.');
+      } else if (detail) {
+        toast.error(`Failed: ${detail}`);
+      } else {
+        toast.error('Failed to update hospital status. Please try again.');
+      }
     } finally {
       setToggling(null);
     }
@@ -188,13 +201,33 @@ export const HospitalManagement: React.FC = () => {
                         <button
                           onClick={() => handleToggle(h)}
                           disabled={toggling === h.id}
-                          className="p-1 rounded transition-colors"
-                          title={h.is_active ? 'Deactivate' : 'Activate'}
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium transition-opacity ${
+                            toggling === h.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:opacity-80'
+                          } ${
+                            h.is_active
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}
+                          title={h.is_active ? 'Click to deactivate' : 'Click to activate'}
                         >
-                          {h.is_active ? (
-                            <FiToggleRight className="text-2xl text-green-600" />
+                          {toggling === h.id ? (
+                            <>
+                              <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                              </svg>
+                              Saving…
+                            </>
+                          ) : h.is_active ? (
+                            <>
+                              <FiToggleRight className="text-base" />
+                              Active
+                            </>
                           ) : (
-                            <FiToggleLeft className="text-2xl text-gray-400" />
+                            <>
+                              <FiToggleLeft className="text-base" />
+                              Inactive
+                            </>
                           )}
                         </button>
                       </td>

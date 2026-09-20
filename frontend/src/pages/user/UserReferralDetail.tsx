@@ -89,6 +89,12 @@ export const UserReferralDetail: React.FC = () => {
             <h1 className="text-xl font-bold text-[#172554] mt-0.5">
               {request.destination_hospital_name}
             </h1>
+            {request.destination_hospital_is_active === false && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600 mt-1">
+                <FiAlertCircle className="text-xs" />
+                Hospital Inactive — contact the system administrator
+              </span>
+            )}
             <p className="text-sm text-[#8a7a63] flex items-center gap-1 mt-0.5">
               <FiMapPin className="text-xs" /> {request.destination_hospital_district}
             </p>

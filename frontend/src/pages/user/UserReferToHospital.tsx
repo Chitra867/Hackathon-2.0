@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { FiChevronLeft, FiArrowRight } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { userPortalApi, servicesApi, patientRequestsApi, hospitalsApi } from '../../lib/api';
@@ -9,6 +9,7 @@ import { LoadingSpinner } from '../../components/common/LoadingSpinner';
 export const UserReferToHospital: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [hospital, setHospital] = useState<HospitalDetailType | null>(null);
   const [loading, setLoading] = useState(true);
@@ -41,11 +42,16 @@ export const UserReferToHospital: React.FC = () => {
     hospitalsApi.list({
       page_size: 100,
       verification_status: 'verified',
-      is_active: true,
+      is_active: 'true',
     } as Record<string, string | number | boolean>)
-      .then(res => setAllHospitals(res.data.results.filter(h => h.id !== Number(id))))
+      .then(res => {
+        // Client-side safety: exclude inactive hospitals, and the current hospital
+        const active = (res.data.results ?? []).filter(h => h.is_active !== false && h.id !== Number(id));
+        setAllHospitals(active);
+      })
       .catch(() => {});
-  }, [id]);
+  // location.key forces a fresh fetch on every navigation visit
+  }, [id, location.key]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

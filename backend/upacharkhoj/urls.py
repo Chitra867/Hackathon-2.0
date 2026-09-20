@@ -23,6 +23,9 @@ urlpatterns = [
 
     # Audit log endpoints
     path('api/', include('apps.audit.urls')),
+
+    # Notification endpoints
+    path('api/', include('apps.notifications.urls')),
 ]
 
 if settings.DEBUG:

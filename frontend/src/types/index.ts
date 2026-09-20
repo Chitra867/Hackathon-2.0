@@ -20,6 +20,12 @@ export interface User {
   role_display: string;
   hospital: number | null;
   hospital_name: string | null;
+  hospital_detail?: {
+    id: number;
+    name: string;
+    district: string;
+    is_active: boolean;
+  } | null;
   phone: string;
   is_verified: boolean;
   is_active: boolean;
@@ -246,6 +252,7 @@ export interface PatientRequest {
   destination_hospital: number;
   destination_hospital_name: string;
   destination_hospital_district: string;
+  destination_hospital_is_active?: boolean;
   service: number | null;
   service_name: string | null;
   service_name_freetext: string;
