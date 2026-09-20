@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { Navbar } from './Navbar';
 import {
   FiHome, FiList, FiActivity,
   FiUsers, FiSettings, FiFileText, FiChevronLeft, FiChevronRight,
   FiBarChart2, FiMapPin, FiClock, FiShield, FiUser, FiInbox, FiArrowRight,
+  FiAlertCircle,
 } from 'react-icons/fi';
 import { useAuthStore } from '../../store/authStore';
+import { useNotificationStore } from '../../store/notificationStore';
+import { authApi } from '../../lib/api';
 
 interface NavItem {
   to: string;
@@ -66,16 +69,79 @@ const portalAccent = (role: string) => {
 
 export const DashboardLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
+  const { startPolling, stopPolling } = useNotificationStore();
   const location = useLocation();
   const navItems = getNavItems(user?.role ?? '');
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/');
 
+  // Start notification polling when the dashboard loads, stop on unmount.
+  useEffect(() => {
+    startPolling();
+    return () => stopPolling();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Refresh the user's profile from the backend on every portal load so that
+  // the hospital_detail.is_active flag stays up-to-date even if the hospital
+  // was deactivated since the user last logged in.
+  useEffect(() => {
+    if (user?.role === 'hospital_admin') {
+      authApi.getProfile().then((res) => {
+        updateUser(res.data);
+      }).catch(() => {
+        // Silently ignore — if the request fails we keep the cached data.
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Block hospital admin / staff from accessing the portal if their hospital
+  // has been deactivated by the super admin.
+  const isHospitalDeactivated =
+    user?.role === 'hospital_admin' &&
+    user?.hospital_detail != null &&
+    user.hospital_detail.is_active === false;
+
   return (
     <div className="h-screen flex flex-col bg-[#faf6ee] overflow-hidden">
       <Navbar />
+
+      {/* ── Hospital deactivated banner ──────────────────── */}
+      {isHospitalDeactivated && (
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-white border border-red-200 rounded-2xl shadow-sm p-8 text-center space-y-4">
+            <div className="flex justify-center">
+              <FiAlertCircle className="text-5xl text-red-500" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800">
+              Hospital Access Suspended
+            </h2>
+            <p className="text-gray-600 text-sm leading-relaxed">
+              <strong>{user.hospital_detail?.name}</strong> has been
+              deactivated by the system administrator. You cannot access the
+              hospital admin panel while your hospital is inactive.
+            </p>
+            <p className="text-gray-500 text-xs">
+              Please contact the system administrator if you believe this is a
+              mistake.
+            </p>
+            <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center gap-2 bg-[#216d73] text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-[#184f54] transition-colors"
+              >
+                Go to Home Page
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Normal portal layout ─────────────────────────── */}
+      {!isHospitalDeactivated && (
       <div className="flex flex-1 min-h-0 w-full overflow-hidden">
         {/* Sidebar */}
         <aside
@@ -141,6 +207,7 @@ export const DashboardLayout: React.FC = () => {
           <Outlet />
         </main>
       </div>
+      )}
     </div>
   );
 };

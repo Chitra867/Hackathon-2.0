@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { FiPlus, FiSearch, FiX, FiChevronDown } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { hospitalsApi, servicesApi, patientRequestsApi } from '../../lib/api';
@@ -124,6 +124,7 @@ const HospitalCombobox: React.FC<HospitalComboboxProps> = ({
 
 /* ── Main page ────────────────────────────────────────────────── */
 export const UserRequestHelp: React.FC = () => {
+  const location = useLocation();
   const [hospitals, setHospitals] = useState<HospitalListItem[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [hospitalsLoading, setHospitalsLoading] = useState(true);
@@ -141,9 +142,14 @@ export const UserRequestHelp: React.FC = () => {
   const [successCode, setSuccessCode] = useState<string | null>(null);
 
   useEffect(() => {
+    setHospitalsLoading(true);
     hospitalsApi
-      .list({ page_size: 200, verification_status: 'verified', is_active: true } as Record<string, string | number | boolean>)
-      .then(res => setHospitals(res.data.results))
+      .list({ page_size: 200, verification_status: 'verified', is_active: 'true' } as Record<string, string | number | boolean>)
+      .then(res => {
+        // Client-side safety: exclude any inactive hospitals that slipped through
+        const active = (res.data.results ?? []).filter(h => h.is_active !== false);
+        setHospitals(active);
+      })
       .catch(() => toast.error('Could not load hospitals.'))
       .finally(() => setHospitalsLoading(false));
 
@@ -151,7 +157,8 @@ export const UserRequestHelp: React.FC = () => {
       .list({ page_size: '100' } as Record<string, string>)
       .then(res => setServices(res.data.results ?? []))
       .catch(() => {});
-  }, []);
+  // location.key re-runs this on every navigation to this page
+  }, [location.key]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -329,18 +329,78 @@ class HospitalViewSet(viewsets.ModelViewSet):
                 AllowAny(),
             ]
 
+        # Hospital admins can update their own hospital's
+        # profile (contact/address fields only – enforced
+        # by HospitalProfileWriteSerializer).
+        # System admins can update ANY hospital, including
+        # toggling is_active.
         if self.action == 'partial_update':
 
             return [
                 IsAuthenticated(),
-                IsHospitalAdmin(),
-                IsOwnHospital(),
+                IsHospitalAdmin(),  # allows hospital_admin + system_admin
+                IsOwnHospital(),    # system_admin always passes object check
+            ]
+
+        # Dedicated toggle endpoint for system admins.
+        if self.action == 'toggle_active':
+
+            return [
+                IsAuthenticated(),
+                IsSystemAdmin(),
             ]
 
         return [
             IsAuthenticated(),
             IsSystemAdmin(),
         ]
+
+    # -----------------------------------------------------
+    # TOGGLE ACTIVE (system admin only)
+    # -----------------------------------------------------
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='toggle-active',
+    )
+    def toggle_active(self, request, pk=None):
+        """
+        POST /api/hospitals/{id}/toggle-active/
+
+        Activates or deactivates a hospital.
+        Only accessible by system administrators.
+        """
+
+        hospital = self.get_object()
+        hospital.is_active = not hospital.is_active
+        hospital.save(update_fields=['is_active', 'updated_at'])
+
+        AuditLog.log(
+            action='hospital_update',
+            actor=request.user,
+            entity_type='Hospital',
+            entity_id=hospital.id,
+            description=(
+                f"Hospital '{hospital.name}' "
+                f"{'activated' if hospital.is_active else 'deactivated'} by "
+                f"'{request.user.username}'."
+            ),
+            ip_address=get_client_ip(request),
+        )
+
+        return Response(
+            {
+                'id': hospital.id,
+                'name': hospital.name,
+                'is_active': hospital.is_active,
+                'message': (
+                    f"Hospital '{hospital.name}' has been "
+                    f"{'activated' if hospital.is_active else 'deactivated'}."
+                ),
+            },
+            status=status.HTTP_200_OK,
+        )
 
     # -----------------------------------------------------
     # CREATE HOSPITAL
@@ -481,6 +541,34 @@ class ServiceViewSet(viewsets.ModelViewSet):
             )
 
         return queryset.order_by('name')
+
+    # -----------------------------------------------------
+    # CREATE SERVICE — notify all hospital admins
+    # -----------------------------------------------------
+
+    def perform_create(self, serializer):
+        service = serializer.save()
+        try:
+            from apps.notifications.models import Notification
+            from apps.accounts.models import User as UserModel
+            hospital_admins = list(
+                UserModel.objects.filter(role='hospital_admin', is_active=True)
+            )
+            Notification.create_for_users(
+                recipients=hospital_admins,
+                notification_type='new_service_added',
+                title='New Medical Service Added',
+                message=(
+                    f"A new service has been added by the administrator: "
+                    f"\"{service.name}\" ({service.get_category_display()}). "
+                    f"You can now link it to your hospital."
+                ),
+                link_url='/hadmin/availability',
+                metadata={'service_id': service.id, 'service_name': service.name},
+            )
+        except Exception as notif_err:
+            import logging as _log
+            _log.getLogger(__name__).warning("Failed to create new-service notifications: %s", notif_err)
 
 
 # =========================================================
@@ -1149,6 +1237,49 @@ class PatientRequestViewSet(viewsets.ModelViewSet):
             ip_address=get_client_ip(self.request),
         )
 
+        # ── Notifications ──────────────────────────────────────
+        try:
+            from apps.notifications.models import Notification
+            from apps.accounts.models import User as UserModel
+
+            # 1. Notify super-admins
+            super_admins = list(UserModel.objects.filter(role='system_admin', is_active=True))
+            Notification.create_for_users(
+                recipients=super_admins,
+                notification_type='new_patient_request',
+                title='New Patient Request',
+                message=(
+                    f"Patient {pr.patient.get_full_name() or pr.patient.username} "
+                    f"submitted a request [{pr.request_code}] to "
+                    f"{pr.destination_hospital.name}."
+                ),
+                link_url='/admin/patient-requests',
+                metadata={'request_id': pr.id, 'request_code': pr.request_code},
+            )
+
+            # 2. Notify hospital admins/staff at destination
+            dest_admins = list(
+                UserModel.objects.filter(
+                    role__in=['hospital_admin', 'hospital_staff'],
+                    hospital=pr.destination_hospital,
+                    is_active=True,
+                )
+            )
+            Notification.create_for_users(
+                recipients=dest_admins,
+                notification_type='patient_request_incoming',
+                title='Incoming Patient Request',
+                message=(
+                    f"New patient request [{pr.request_code}]: "
+                    f"{pr.condition_summary[:100]}."
+                ),
+                link_url='/hadmin/patient-requests',
+                metadata={'request_id': pr.id, 'request_code': pr.request_code},
+            )
+        except Exception as notif_err:
+            logger.warning("Failed to create patient-request notifications: %s", notif_err)
+        # ── End Notifications ──────────────────────────────────
+
     @action(detail=True, methods=['patch'], url_path='respond')
     def respond(self, request, pk=None):
         """Hospital staff or system admin accepts/rejects/calls a patient request."""
@@ -1201,6 +1332,38 @@ class PatientRequestViewSet(viewsets.ModelViewSet):
             description=f"Patient request [{pr.request_code}]: {old_status} → {new_status}.",
             ip_address=get_client_ip(request),
         )
+
+        # ── Notifications ──────────────────────────────────────
+        try:
+            from apps.notifications.models import Notification
+
+            status_labels = {
+                'accepted': 'accepted ✓',
+                'rejected': 'rejected ✗',
+                'call_required': 'requires a call — please call the hospital',
+            }
+            label = status_labels.get(new_status, new_status.replace('_', ' '))
+
+            # Notify the patient
+            Notification.create_for_users(
+                recipients=[pr.patient],
+                notification_type='patient_request_status',
+                title=f"Request {new_status.replace('_', ' ').title()}",
+                message=(
+                    f"Your request [{pr.request_code}] to "
+                    f"{pr.destination_hospital.name} has been {label}."
+                    + (f" Note: {note}" if note else "")
+                ),
+                link_url='/user/referrals',
+                metadata={
+                    'request_id': pr.id,
+                    'request_code': pr.request_code,
+                    'new_status': new_status,
+                },
+            )
+        except Exception as notif_err:
+            logger.warning("Failed to create patient-request respond notifications: %s", notif_err)
+        # ── End Notifications ──────────────────────────────────
 
         return Response(PatientRequestSerializer(pr, context={'request': request}).data)
 
@@ -1606,8 +1769,9 @@ class UserSearchSuggestionsView(APIView):
       - Doctor specialties
       - District names
     Returns up to 8 suggestions ranked by relevance.
+    Open to unauthenticated users so the public search page can use it.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         q = (request.query_params.get('q') or '').strip()

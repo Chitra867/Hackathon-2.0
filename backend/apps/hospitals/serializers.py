@@ -482,6 +482,7 @@ class PatientRequestSerializer(serializers.ModelSerializer):
     patient_name = serializers.SerializerMethodField()
     destination_hospital_name = serializers.ReadOnlyField(source='destination_hospital.name')
     destination_hospital_district = serializers.ReadOnlyField(source='destination_hospital.district')
+    destination_hospital_is_active = serializers.ReadOnlyField(source='destination_hospital.is_active')
     service_name = serializers.SerializerMethodField()
     status_display = serializers.ReadOnlyField(source='get_status_display')
     events = PatientRequestEventSerializer(many=True, read_only=True)
@@ -496,6 +497,7 @@ class PatientRequestSerializer(serializers.ModelSerializer):
             'destination_hospital',
             'destination_hospital_name',
             'destination_hospital_district',
+            'destination_hospital_is_active',
             'service',
             'service_name',
             'service_name_freetext',

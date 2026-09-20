@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { FiMenu, FiX, FiBell, FiLogOut, FiUser, FiUserPlus } from 'react-icons/fi';
+import { FiMenu, FiX, FiLogOut, FiUser, FiUserPlus } from 'react-icons/fi';
 import { GiHeartPlus } from 'react-icons/gi';
 import toast from 'react-hot-toast';
 
 import { useAuthStore } from '../../store/authStore';
-import { useNotificationStore } from '../../store/notificationStore';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 
 export const Navbar: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout, isAuthenticated, getDashboardPath } = useAuthStore();
-  const { unreadCount } = useNotificationStore();
   const navigate = useNavigate();
   const location = useLocation();
   const authenticated = isAuthenticated();
@@ -47,7 +46,7 @@ export const Navbar: React.FC = () => {
     <header className="sticky top-0 z-30 border-b border-[#e8dfcf] bg-[#fffdf9]/95 backdrop-blur-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
 
-        {/* Main bar */}
+        {/* ── Main bar ─────────────────────────────────────────────────── */}
         <div className="flex h-14 items-center justify-between gap-3">
 
           {/* Logo */}
@@ -65,7 +64,7 @@ export const Navbar: React.FC = () => {
             </div>
           </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop nav pills */}
           <nav className="hidden items-center rounded-full border border-[#ebe3d5] bg-[#f8f4eb] p-1 md:flex">
             {navLinks.map((link) => (
               <Link
@@ -86,21 +85,10 @@ export const Navbar: React.FC = () => {
           <div className="flex shrink-0 items-center gap-1">
             {authenticated ? (
               <>
-                {/* Notifications */}
-                <button
-                  type="button"
-                  className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#64748b] transition hover:bg-[#edf5f3] hover:text-[#07545e]"
-                  aria-label="Notifications"
-                >
-                  <FiBell className="text-base" />
-                  {unreadCount() > 0 && (
-                    <span className="absolute right-1 top-1 flex h-4 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[9px] font-bold text-white leading-none">
-                      {unreadCount() > 9 ? '9+' : unreadCount()}
-                    </span>
-                  )}
-                </button>
+                {/* ── Functional notification bell ──────────────────── */}
+                <NotificationDropdown />
 
-                {/* Desktop user */}
+                {/* Desktop: user chip + logout */}
                 <div className="hidden items-center gap-1 md:flex">
                   <Link
                     to={getDashboardPath()}
@@ -130,7 +118,7 @@ export const Navbar: React.FC = () => {
                 </div>
               </>
             ) : (
-              /* Desktop auth buttons */
+              /* Desktop auth buttons — not logged in */
               <div className="hidden items-center gap-2 md:flex">
                 <Link
                   to="/login"
@@ -150,7 +138,7 @@ export const Navbar: React.FC = () => {
             {/* Mobile hamburger */}
             <button
               type="button"
-              onClick={() => setMenuOpen(o => !o)}
+              onClick={() => setMenuOpen((o) => !o)}
               className="flex h-9 w-9 items-center justify-center rounded-full text-[#475569] transition hover:bg-[#f4efe5] md:hidden"
               aria-label={menuOpen ? 'Close menu' : 'Open menu'}
               aria-expanded={menuOpen}
@@ -160,10 +148,10 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile menu — slides in below the bar */}
+        {/* ── Mobile menu ──────────────────────────────────────────────── */}
         {menuOpen && (
           <div className="border-t border-[#eee7dc] py-2 md:hidden">
-            <nav className="space-y-0.5 mb-2">
+            <nav className="mb-2 space-y-0.5">
               {navLinks.map((link) => (
                 <Link
                   key={link.to}
@@ -181,7 +169,7 @@ export const Navbar: React.FC = () => {
             </nav>
 
             {authenticated ? (
-              <div className="border-t border-[#eee7dc] pt-2 space-y-0.5">
+              <div className="space-y-0.5 border-t border-[#eee7dc] pt-2">
                 <div className="flex items-center gap-3 rounded-xl bg-[#f8f4eb] px-4 py-2.5">
                   <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#dceeea] text-xs font-bold text-[#07545e]">
                     {user?.username?.charAt(0).toUpperCase()}
@@ -204,7 +192,7 @@ export const Navbar: React.FC = () => {
                 </button>
               </div>
             ) : (
-              <div className="border-t border-[#eee7dc] pt-2 space-y-1.5">
+              <div className="space-y-1.5 border-t border-[#eee7dc] pt-2">
                 <Link
                   to="/login"
                   onClick={() => setMenuOpen(false)}

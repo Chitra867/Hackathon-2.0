@@ -117,6 +117,12 @@ export const MyReferrals: React.FC = () => {
                     <span className="text-sm font-semibold text-[#172554] truncate">
                       {req.destination_hospital_name}
                     </span>
+                    {req.destination_hospital_is_active === false && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">
+                        <FiAlertCircle className="text-xs" />
+                        Inactive
+                      </span>
+                    )}
                     <PatientRequestStatusBadge status={req.status as PatientRequestStatus} size="sm" />
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">

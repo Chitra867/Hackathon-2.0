@@ -15,6 +15,7 @@ class HospitalMinimalSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
     district = serializers.CharField()
+    is_active = serializers.BooleanField()
 
 
 class UserSerializer(serializers.ModelSerializer):
