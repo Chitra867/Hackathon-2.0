@@ -163,16 +163,7 @@ export const UserLayout: React.FC = () => {
             </Link>
           </div>
 
-          <div className="h-7 w-px bg-[#e9e8e2] hidden sm:block" />
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-medium text-[#7d8b89] hover:text-[#bd604e] transition-colors rounded-xl px-3 py-2 hover:bg-[#fff0eb]"
-            title="Logout"
-          >
-            <FiLogOut className="text-lg" />
-            <span className="hidden sm:block">Logout</span>
-          </button>
         </div>
       </header>
 

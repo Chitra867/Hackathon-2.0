@@ -1769,8 +1769,9 @@ class UserSearchSuggestionsView(APIView):
       - Doctor specialties
       - District names
     Returns up to 8 suggestions ranked by relevance.
+    Open to unauthenticated users so the public search page can use it.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         q = (request.query_params.get('q') or '').strip()
