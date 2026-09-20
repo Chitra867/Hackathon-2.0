@@ -20,6 +20,8 @@ import { HospitalDetailPage } from './pages/public/HospitalDetailPage';
 import { LoginPage } from './pages/public/LoginPage';
 import { RegisterPage } from './pages/public/RegisterPage';
 import { AboutPage } from './pages/public/AboutPage';
+import { ForgotPasswordPage } from './pages/public/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/public/ResetPasswordPage';
 
 /* ── USER PORTAL ─────────────────────────────────────────── */
 import { UserDashboard } from './pages/user/UserDashboard';
@@ -106,6 +108,8 @@ function App() {
           <Route path="/hospital/:id" element={<HospitalDetailPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password/:uid/:token" element={<ResetPasswordPage />} />
           <Route path="*" element={
             <div className="flex min-h-[60vh] items-center justify-center">
               <div className="text-center">
