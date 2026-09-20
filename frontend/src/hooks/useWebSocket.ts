@@ -68,7 +68,6 @@ export function useWebSocket(
     };
 
     ws.onmessage = (event: MessageEvent) => {
-      if (!onMessage) return;
       try {
         const data = JSON.parse(event.data as string);
 
@@ -81,12 +80,10 @@ export function useWebSocket(
             : 'info',
           title: data.title || 'Update',
           message: data.message || JSON.stringify(data),
-          timestamp: new Date().toISOString(),
-          read: false,
           data,
         };
 
-        // The REST API remains the source of truth for the notification list.
+        // The REST API remains the source of truth for notifications.
         void fetchNotifications();
         onMessage?.(notification);
       } catch {
@@ -95,7 +92,7 @@ export function useWebSocket(
     };
 
     ws.onclose = () => {
-      // Ignore the close event from a connection we already replaced.
+      // Ignore the close event from a connection already replaced.
       if (wsRef.current !== ws) return;
 
       wsRef.current = null;
