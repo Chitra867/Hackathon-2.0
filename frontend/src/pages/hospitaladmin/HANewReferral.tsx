@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import {
   FiArrowLeft, FiSend, FiAlertTriangle, FiInfo,
 } from 'react-icons/fi';
@@ -26,6 +26,7 @@ const GENDER_OPTIONS = [
 export const HANewReferral: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
 
   const prefillCondition = searchParams.get('condition') || '';
@@ -63,12 +64,15 @@ export const HANewReferral: React.FC = () => {
       // Load all registered patients upfront for the dropdown
       patientsApi.list(),
     ]).then(([hRes, sRes, pRes]) => {
-      setHospitals(hRes.data.results.filter(h => h.id !== user?.hospital));
+      // Client-side safety: exclude inactive hospitals and the user's own hospital
+      const active = (hRes.data.results ?? []).filter(h => h.is_active !== false && h.id !== user?.hospital);
+      setHospitals(active);
       setServices(sRes.data.results ?? []);
       setPatients((pRes as { data: PatientSearchResult[] }).data);
     }).catch(() => toast.error('Failed to load form data.'))
       .finally(() => setLoadingData(false));
-  }, [user?.hospital]);
+  // location.key forces a fresh fetch on every navigation visit
+  }, [user?.hospital, location.key]);
 
   // When patient selection changes, auto-fill contact phone
   const handlePatientChange = (patientId: string) => {

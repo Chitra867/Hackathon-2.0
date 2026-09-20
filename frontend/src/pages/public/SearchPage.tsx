@@ -1,9 +1,11 @@
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   Link,
   useSearchParams,
+  useLocation,
 } from 'react-router-dom';
 
 import {
@@ -20,11 +22,14 @@ import {
   FiCheckCircle,
 } from 'react-icons/fi';
 
+import { FaHospital } from 'react-icons/fa';
+import { MdMedicalServices, MdLocalHospital } from 'react-icons/md';
+
 import { GiHeartPlus } from 'react-icons/gi';
 
-import { hospitalsApi } from '../../lib/api';
+import { hospitalsApi, userPortalApi } from '../../lib/api';
 
-import type { HospitalListItem } from '../../types';
+import type { HospitalListItem, SearchSuggestion } from '../../types';
 
 import { useAuthStore } from '../../store/authStore';
 
@@ -63,11 +68,34 @@ interface HospitalListResponse {
 }
 
 // --------------------------------------------------
+// Suggestion helpers
+// --------------------------------------------------
+
+const suggestionStyle: Record<SearchSuggestion['type'], { icon: React.ReactNode; badge: string }> = {
+  hospital:  { icon: <FaHospital />,        badge: 'bg-[#eef3f2] text-[#216d73]' },
+  service:   { icon: <MdMedicalServices />, badge: 'bg-[#eef3f2] text-[#538b8c]' },
+  specialty: { icon: <MdLocalHospital />,   badge: 'bg-[#f2ece0] text-[#8a7350]' },
+  district:  { icon: <FiMapPin />,          badge: 'bg-[#eef1f0] text-[#6b7d79]' },
+};
+
+const typeLabel = (type: SearchSuggestion['type']) => {
+  switch (type) {
+    case 'hospital':  return 'Hospital';
+    case 'service':   return 'Service';
+    case 'specialty': return 'Specialty';
+    case 'district':  return 'District';
+    default:          return '';
+  }
+};
+
+// --------------------------------------------------
 // MAIN COMPONENT
 // --------------------------------------------------
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+
+  const location = useLocation();
 
   const { isAuthenticated } = useAuthStore();
 
@@ -89,6 +117,15 @@ export const SearchPage: React.FC = () => {
     districtQuery
   );
 
+  // Suggestion state
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
+  const suggestDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
+
   // Hospital data
   const [hospitals, setHospitals] = useState<
     HospitalListItem[]
@@ -101,6 +138,117 @@ export const SearchPage: React.FC = () => {
   const [page, setPage] = useState(1);
 
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // --------------------------------------------------
+  // MEASURE DROPDOWN POSITION (must be first — used by fetchSuggestions)
+  // --------------------------------------------------
+
+  const measureDropdown = useCallback(() => {
+    if (!inputRef.current) return;
+    const r = inputRef.current.getBoundingClientRect();
+    setDropdownRect({
+      top: r.bottom + window.scrollY + 4,
+      left: r.left + window.scrollX,
+      width: r.width,
+    });
+  }, []);
+
+  // Keep portal dropdown anchored on scroll / resize
+  useEffect(() => {
+    if (!showSuggestions) return;
+    measureDropdown();
+    window.addEventListener('scroll', measureDropdown, true);
+    window.addEventListener('resize', measureDropdown);
+    return () => {
+      window.removeEventListener('scroll', measureDropdown, true);
+      window.removeEventListener('resize', measureDropdown);
+    };
+  }, [showSuggestions, measureDropdown]);
+
+  // --------------------------------------------------
+  // SEARCH SUBMIT (must be before handleSearchInputKeyDown)
+  // --------------------------------------------------
+
+  const doSubmit = useCallback(() => {
+    const params: Record<string, string> = {};
+    if (searchInput.trim()) params.search = searchInput.trim();
+    if (districtInput.trim()) params.district = districtInput.trim();
+    setPage(1);
+    setSearchParams(params);
+  }, [searchInput, districtInput, setSearchParams]);
+
+  // --------------------------------------------------
+  // SUGGESTION FETCH
+  // --------------------------------------------------
+
+  const fetchSuggestions = useCallback((q: string) => {
+    if (suggestDebounce.current) clearTimeout(suggestDebounce.current);
+    if (q.length < 2) { setSuggestions([]); setShowSuggestions(false); return; }
+    suggestDebounce.current = setTimeout(async () => {
+      try {
+        const res = await userPortalApi.getSearchSuggestions(q);
+        setSuggestions(res.data.suggestions);
+        if (res.data.suggestions.length > 0) {
+          measureDropdown();
+          setShowSuggestions(true);
+        } else {
+          setShowSuggestions(false);
+        }
+        setActiveIdx(-1);
+      } catch {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 250);
+  }, [measureDropdown]);
+
+  const handleSelectSuggestion = useCallback((s: SearchSuggestion) => {
+    setSearchInput(s.label);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    const params: Record<string, string> = { search: s.label };
+    if (districtInput.trim()) params.district = districtInput.trim();
+    setPage(1);
+    setSearchParams(params);
+  }, [districtInput, setSearchParams]);
+
+  const handleSearchInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSubmit();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIdx(i => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIdx(i => Math.max(i - 1, -1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIdx >= 0 && suggestions[activeIdx]) {
+        handleSelectSuggestion(suggestions[activeIdx]);
+      } else {
+        setShowSuggestions(false);
+        doSubmit();
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
+  }, [showSuggestions, suggestions, activeIdx, doSubmit, handleSelectSuggestion]);
+
+  // Close suggestion dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // --------------------------------------------------
   // SYNCHRONIZE INPUTS WITH URL
@@ -142,7 +290,8 @@ export const SearchPage: React.FC = () => {
 
           // Support an API returning an array.
           if (Array.isArray(data)) {
-            allHospitals.push(...data);
+            // Client-side safety: only show active hospitals
+            allHospitals.push(...data.filter(h => h.is_active !== false));
             break;
           }
 
@@ -153,7 +302,8 @@ export const SearchPage: React.FC = () => {
             );
           }
 
-          allHospitals.push(...data.results);
+          // Client-side safety: only show active hospitals
+          allHospitals.push(...data.results.filter(h => h.is_active !== false));
 
           if (!data.next) {
             break;
@@ -190,7 +340,9 @@ export const SearchPage: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [refreshKey]);
+  // location.key changes on every navigation — forces a fresh fetch each visit.
+  // refreshKey handles manual refresh button clicks.
+  }, [refreshKey, location.key]);
 
   // --------------------------------------------------
   // DISTRICT OPTIONS
@@ -242,26 +394,13 @@ export const SearchPage: React.FC = () => {
   );
 
   // --------------------------------------------------
-  // SEARCH
+  // SEARCH FORM SUBMIT
   // --------------------------------------------------
 
-  const handleSearch = (
-    event: React.FormEvent<HTMLFormElement>
-  ) => {
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    const params: Record<string, string> = {};
-
-    if (searchInput.trim()) {
-      params.search = searchInput.trim();
-    }
-
-    if (districtInput.trim()) {
-      params.district = districtInput.trim();
-    }
-
-    setPage(1);
-    setSearchParams(params);
+    setShowSuggestions(false);
+    doSubmit();
   };
 
   // --------------------------------------------------
@@ -430,23 +569,79 @@ export const SearchPage: React.FC = () => {
                     Hospital Name
                   </label>
 
-                  <div className="relative">
+                  <div ref={searchContainerRef} className="relative">
 
                     <FiSearch
-                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#82949a]"
+                      className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#82949a] z-10"
                       aria-hidden="true"
                     />
 
                     <input
+                      ref={inputRef}
                       id="hospital-name-search"
                       type="search"
                       value={searchInput}
-                      onChange={(event) =>
-                        setSearchInput(event.target.value)
-                      }
+                      onChange={(event) => {
+                        setSearchInput(event.target.value);
+                        fetchSuggestions(event.target.value);
+                      }}
+                      onKeyDown={handleSearchInputKeyDown}
+                      onFocus={() => {
+                        if (suggestions.length > 0) {
+                          measureDropdown();
+                          setShowSuggestions(true);
+                        }
+                      }}
+                      autoComplete="off"
                       placeholder="Search by hospital name..."
                       className="h-12 w-full rounded-xl border border-white/80 bg-white pl-11 pr-4 text-sm text-[#173c40] shadow-sm outline-none transition focus:border-[#07545e] focus:ring-2 focus:ring-[#07545e]/20"
                     />
+
+                    {/* SUGGESTIONS DROPDOWN — rendered in a portal to escape overflow:hidden */}
+                    {showSuggestions && suggestions.length > 0 && dropdownRect && createPortal(
+                      <ul
+                        role="listbox"
+                        style={{
+                          position: 'absolute',
+                          top: dropdownRect.top,
+                          left: dropdownRect.left,
+                          width: dropdownRect.width,
+                          zIndex: 9999,
+                        }}
+                        className="overflow-hidden rounded-xl border border-[#dfd4bf] bg-white shadow-[0_8px_24px_rgba(25,59,62,0.18)]"
+                      >
+                        {suggestions.map((s, idx) => {
+                          const style = suggestionStyle[s.type];
+                          return (
+                            <li
+                              key={`${s.type}-${s.label}`}
+                              role="option"
+                              aria-selected={idx === activeIdx}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleSelectSuggestion(s);
+                              }}
+                              className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                                idx === activeIdx
+                                  ? 'bg-[#eef3f2]'
+                                  : 'hover:bg-[#f5efe3]'
+                              }`}
+                            >
+                              <span className="flex-shrink-0 text-[#07545e]">
+                                {style.icon}
+                              </span>
+                              <span className="flex-1 truncate text-[#173c40]">
+                                {s.label}
+                              </span>
+                              <span className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${style.badge}`}>
+                                {typeLabel(s.type)}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>,
+                      document.body
+                    )}
 
                   </div>
 

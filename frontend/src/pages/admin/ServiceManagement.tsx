@@ -167,16 +167,24 @@ export const ServiceManagement: React.FC = () => {
               These are the services patients can search and filter by, grouped the way people actually look for them.
             </p>
           </div>
-          {services.length > 0 && (
-            <div className="flex-shrink-0 flex items-center gap-2 bg-white border border-[#e5dcc8] rounded-full pl-1 pr-4 py-1 shadow-sm">
-              <span className="w-8 h-8 rounded-full bg-[#eef3f2] flex items-center justify-center text-[#216d73] text-sm font-semibold">
-                {services.length}
-              </span>
-              <span className="text-xs text-[#6b7d79]">
-                total · <span className="text-[#216d73] font-medium">{activeCount} live</span>
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {services.length > 0 && (
+              <div className="flex items-center gap-2 bg-white border border-[#e5dcc8] rounded-full pl-1 pr-4 py-1 shadow-sm">
+                <span className="w-8 h-8 rounded-full bg-[#eef3f2] flex items-center justify-center text-[#216d73] text-sm font-semibold">
+                  {services.length}
+                </span>
+                <span className="text-xs text-[#6b7d79]">
+                  total · <span className="text-[#216d73] font-medium">{activeCount} live</span>
+                </span>
+              </div>
+            )}
+            <button
+              onClick={() => openAddIn('other')}
+              className="inline-flex items-center gap-2 bg-[#216d73] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#184f54] transition-colors shadow-sm"
+            >
+              <FiPlus className="text-base" /> Add Service
+            </button>
+          </div>
         </div>
 
         {services.length === 0 ? (

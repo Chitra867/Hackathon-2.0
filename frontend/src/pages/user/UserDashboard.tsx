@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { Link } from 'react-router-dom';
 
 import {
   FiActivity,
@@ -26,29 +26,12 @@ import { useAuthStore } from '../../store/authStore';
 
 export const UserDashboard: React.FC = () => {
   const { user } = useAuthStore();
-  const navigate = useNavigate();
-
-  const [search, setSearch] = useState('');
 
   const firstName =
     user?.first_name ||
     user?.full_name?.split(' ')[0] ||
     user?.username ||
     'there';
-
-  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const query = search.trim();
-
-    if (query) {
-      navigate(
-        `/user/hospitals?search=${encodeURIComponent(query)}`
-      );
-    } else {
-      navigate('/user/hospitals');
-    }
-  };
 
   const quickActions = [
     {
@@ -205,37 +188,27 @@ export const UserDashboard: React.FC = () => {
                 the care you need — all in one place.
               </p>
 
-              {/* SEARCH BAR */}
+              {/* CTA BUTTONS */}
 
-              <form
-                onSubmit={handleSearch}
-                className="mt-8 flex flex-col gap-3 sm:flex-row"
-              >
+              <div className="mt-8 flex flex-wrap gap-3">
 
-                <div className="flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-white px-4 py-3.5 shadow-lg">
-
-                  <FiSearch className="flex-shrink-0 text-lg text-[#78918e]" />
-
-                  <input
-                    type="text"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search hospitals or services..."
-                    aria-label="Search hospitals or services"
-                    className="min-w-0 w-full bg-transparent text-sm text-[#173c40] placeholder:text-[#9aa8a3] focus:outline-none"
-                  />
-
-                </div>
-
-                <button
-                  type="submit"
+                <Link
+                  to="/user/hospitals"
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#f3dba8] px-6 py-3.5 text-sm font-semibold text-[#24464a] shadow-lg transition-all hover:-translate-y-0.5 hover:bg-[#f8e5bf]"
                 >
-                  Search
+                  <FiSearch />
+                  Find Hospitals
                   <FiArrowRight />
-                </button>
+                </Link>
 
-              </form>
+                <Link
+                  to="/user/request-help"
+                  className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/30 bg-white/10 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur-sm transition-all hover:-translate-y-0.5 hover:bg-white/20"
+                >
+                  Request Help
+                </Link>
+
+              </div>
 
               {/* HERO BOTTOM FEATURES */}
 

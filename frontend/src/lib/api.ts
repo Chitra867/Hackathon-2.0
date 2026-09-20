@@ -402,6 +402,14 @@ export const hospitalsApi = {
     api.post(
       `/hospitals/${id}/reject/`
     ),
+
+
+  toggleActive: (
+    id: number
+  ) =>
+    api.post<{ id: number; name: string; is_active: boolean; message: string }>(
+      `/hospitals/${id}/toggle-active/`
+    ),
 };
 
 
@@ -759,3 +767,46 @@ export const userPortalApi = {
 
 
 export default api;
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Notifications Endpoints
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AppNotificationItem {
+  id: number;
+  notification_type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  link_url: string;
+  metadata: Record<string, unknown>;
+  created_at: string;
+}
+
+export const notificationsApi = {
+  /** Fetch newest 50 notifications for the current user. */
+  list: () =>
+    api.get<AppNotificationItem[]>('/notifications/'),
+
+  /** Lightweight badge count — just { count: N }. */
+  unreadCount: () =>
+    api.get<{ count: number }>('/notifications/unread-count/'),
+
+  /** Mark specific IDs (or all) as read. */
+  markRead: (ids?: number[]) =>
+    api.post<{ updated: number }>('/notifications/mark-read/', {
+      ids: ids ?? [],
+      mark_all: !ids,
+    }),
+
+  /** Mark every notification as read. */
+  markAllRead: () =>
+    api.post<{ updated: number }>('/notifications/mark-read/', {
+      mark_all: true,
+    }),
+
+  /** Delete all notifications for the current user. */
+  clearAll: () =>
+    api.delete<{ deleted: number }>('/notifications/clear/'),
+};

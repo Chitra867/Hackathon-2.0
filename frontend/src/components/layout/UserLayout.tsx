@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FiHome,
@@ -13,10 +13,11 @@ import {
   FiChevronRight,
   FiPlus,
   FiArrowRight,
-  FiHeart,
 } from 'react-icons/fi';
 import { GiHeartPlus } from 'react-icons/gi';
 import { useAuthStore } from '../../store/authStore';
+import { useNotificationStore } from '../../store/notificationStore';
+import { NotificationDropdown } from '../common/NotificationDropdown';
 import toast from 'react-hot-toast';
 
 const NAV_ITEMS = [
@@ -66,9 +67,17 @@ export const UserLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
 
   const { user, logout } = useAuthStore();
+  const { startPolling, stopPolling } = useNotificationStore();
 
   const location = useLocation();
   const navigate = useNavigate();
+
+  // Start polling when this layout mounts, stop when it unmounts
+  useEffect(() => {
+    startPolling();
+    return () => stopPolling();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const displayName =
     user?.full_name ||
@@ -127,7 +136,13 @@ export const UserLayout: React.FC = () => {
         </Link>
 
         {/* RIGHT NAVBAR */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+
+          {/* NOTIFICATION BELL */}
+          <NotificationDropdown
+            badgeColor="bg-red-500"
+            iconClassName="text-[#5a7674] hover:text-[#0e6068] hover:bg-[#e7f3f0]"
+          />
 
           <div className="hidden sm:flex items-center gap-3">
             <div className="text-right">
@@ -148,16 +163,7 @@ export const UserLayout: React.FC = () => {
             </Link>
           </div>
 
-          <div className="h-7 w-px bg-[#e9e8e2] hidden sm:block" />
 
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-sm font-medium text-[#7d8b89] hover:text-[#bd604e] transition-colors rounded-xl px-3 py-2 hover:bg-[#fff0eb]"
-            title="Logout"
-          >
-            <FiLogOut className="text-lg" />
-            <span className="hidden sm:block">Logout</span>
-          </button>
         </div>
       </header>
 
