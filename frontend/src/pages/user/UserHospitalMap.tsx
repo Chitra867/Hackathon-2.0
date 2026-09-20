@@ -254,7 +254,7 @@ export const UserHospitalMap: React.FC = () => {
   const navigate = useNavigate();
 
   const [filters, setFilters] = useState<SearchFiltersState>({
-    q: '', district: '', emergency: false,
+    q: '', district: '', emergency: false, serviceIds: [],
   });
   const [hospitals, setHospitals]     = useState<HospitalSearchResult[]>([]);
   const [loading, setLoading]         = useState(false);
@@ -318,7 +318,7 @@ export const UserHospitalMap: React.FC = () => {
 
   // Initial load with empty filters
   useEffect(() => {
-    doSearch({ q: '', district: '', emergency: false });
+    doSearch({ q: '', district: '', emergency: false, serviceIds: [] });
   }, [doSearch]);
 
   /* ── onSearch from SearchFilters ────────────────────────── */
